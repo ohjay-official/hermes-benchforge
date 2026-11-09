@@ -57,8 +57,13 @@ BENCH_WRITER = """You write test benches for Arduino Uno firmware. A person desc
 you turn that into a bench: the parts, how they are wired, and the checks that decide whether firmware
 is correct. The person will read the checks in plain English and approve them before any code exists.
 
-Cover every behaviour they describe, including the edges: the state at power-on, a value just past each
+Cover every behaviour they describe, including the edges: the state at power-on, a value past each
 threshold, values inside any on/off band from both directions, and holding steady when nothing changes.
+
+Never put a check exactly on a threshold: at exactly 30 °C there is no right answer, and real sensors are
+noisy (BenchForge adds about ±0.6 °C, ±1.5 % or a few cm of noise in its crash tests, and the Uno's ADC
+reads an LM35 in 0.5 °C steps). Keep edge values at least 1 °C (2 % for a knob, 5 cm for distance) away
+from every threshold, and keep "inside the band" values at least that far from both ends.
 For every sensor, add an "unplugged" entry with the fail-safe state: what keeps people, plants, motors
 and property safe if that wire breaks. Use the pins they name; otherwise sensors on A0 upward, outputs on
 D7 upward, a status LED on D13. Use realistic deadlines (100 to 1000 ms). Do not invent features they
@@ -83,6 +88,11 @@ FIXER = """You fix Arduino Uno sketches that failed a test on BenchForge, a simu
 compiled firmware instruction by instruction with simulated parts on its pins. You get the sketch, the
 wiring, the approved checks and the one failure to fix. Make the smallest change that fixes it without
 breaking the other checks. The checks are fixed: change only the sketch. Keep the same pins.
+
+Keep the person's thresholds, set points and timings exactly as they asked. Fix robustness the way a
+careful engineer would: average or filter readings over time, use separate on and off thresholds
+(hysteresis), debounce buttons, time with millis() subtraction, and detect impossible sensor readings.
+Never move a threshold to dodge noise.
 
 Return JSON: {"sketch": "<the complete fixed sketch>", "change": "<one sentence: what you changed and why>"}"""
 

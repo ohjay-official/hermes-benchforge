@@ -44,8 +44,8 @@ class Result:
 
 
 class Gemini:
-    def __init__(self, key: str, model: str):
-        self.key, self.model = key, model
+    def __init__(self, key: str, model: str, wait: int = 420, tries: int = 3, thinking: str | None = "low"):
+        self.key, self.model, self.wait, self.tries, self.thinking = key, model, wait, tries, thinking
         self.calls = 0
 
     def complete_structured(self, *, instructions, input, json_schema=None, json_mode=False, purpose="",
@@ -55,22 +55,24 @@ class Gemini:
             "systemInstruction": {"parts": [{"text": instructions}]},
             "contents": [{"role": "user", "parts": [{"text": "".join(b["text"] for b in input)}]}],
             "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": max_tokens or 8000,
-                                 "temperature": 0.2, "thinkingConfig": {"thinkingLevel": "low"}},
+                                 "temperature": 0.2},
         }
+        if self.thinking:
+            body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": self.thinking}
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
         t0 = time.time()
         for attempt in range(5):
             req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
                                          headers={"Content-Type": "application/json", "x-goog-api-key": self.key})
             try:
-                with urllib.request.urlopen(req, timeout=max(timeout or 0, 420)) as r:
+                with urllib.request.urlopen(req, timeout=self.wait) as r:
                     data = json.loads(r.read())
                 text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"]
                                if not p.get("thought"))
-                print(f"   ({purpose}: {time.time() - t0:.0f} s)", flush=True)
+                print(f"   ({self.model} {purpose}: {time.time() - t0:.0f} s)", flush=True)
                 return Result(text)
             except TimeoutError:
-                if attempt < 2:
+                if attempt < self.tries - 1:
                     print(f"   ({purpose}: timed out, retrying)", flush=True)
                     continue
                 raise
@@ -82,11 +84,36 @@ class Gemini:
         raise RuntimeError("Gemini kept refusing")
 
 
+PROBE_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest",
+                "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview"]
+
+
+def probe(key: str) -> int:
+    """Time one real bench-writing call on several models at once, to pick a fast one for the demo."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(model):
+        llm = Gemini(key, model, wait=200, tries=1)
+        t = time.time()
+        try:
+            bench, _notes = agent.write_bench(llm, REQUESTS[0], attempts=1)
+            return f"{model}: {time.time() - t:.0f} s, valid bench with {len(describe(bench))} checks"
+        except Exception as exc:
+            return f"{model}: {time.time() - t:.0f} s, FAILED ({type(exc).__name__}: {str(exc)[:120]})"
+
+    with ThreadPoolExecutor(len(PROBE_MODELS)) as pool:
+        for line in pool.map(one, PROBE_MODELS):
+            print(line, flush=True)
+    return 0
+
+
 def main() -> int:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         print("GEMINI_API_KEY is not set")
         return 2
+    if len(sys.argv) > 1 and sys.argv[1] == "probe":
+        return probe(key)
     llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-3.8-flash")
     try:
         req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
