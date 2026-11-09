@@ -1,5 +1,7 @@
 # BenchForge for Hermes
 
+[![ci](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/ci.yml/badge.svg)](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/ci.yml) [![live board](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/pages.yml/badge.svg)](https://ohjay-official.github.io/hermes-benchforge/)
+
 **The flight simulator for AI-written Arduino firmware. Proven on the chip before it touches the world.**
 
 <p align="center"><img src="docs/board.gif" width="380" alt="A greenhouse fan controller running on BenchForge's simulated Arduino Uno: the temperature rises, the fan relay switches on, each check turns green"></p>
