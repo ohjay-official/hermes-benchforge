@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -67,12 +68,18 @@ def _shown_path(path) -> str:
 
 
 class _Progress:
-    """One chat message that grows line by line as the work goes (edited in place where possible)."""
+    """One chat message that grows line by line as the work goes (edited in place where possible).
+
+    Telegram lets a chat take about one send or edit per second and quietly skips an edit that comes
+    sooner, so updates are spaced out: every line that is added is a line the person actually sees."""
+
+    GAP_S = 1.4
 
     def __init__(self, ctx):
         self.ctx = ctx
         self.handle = None
         self.lines: list = []
+        self._last = 0.0
 
     def add(self, line: str) -> None:
         self.lines.append(line)
@@ -87,6 +94,10 @@ class _Progress:
 
     def _push(self) -> None:
         text = "\n".join(self.lines)
+        wait = self.GAP_S - (time.monotonic() - self._last)
+        if wait > 0:
+            time.sleep(wait)
+        self._last = time.monotonic()
         try:
             if self.handle is not None and self.handle.ok:
                 if self.handle.edit(text).get("ok"):
@@ -128,6 +139,15 @@ def _round_line(r) -> str:
     return f"{head}: ✗ {good}/{total}\n     ✗ {where}{res.text}\n       saw: {saw}"
 
 
+def _score(r) -> str:
+    o = r.outcome
+    label = "first sketch" if r.n == 0 else f"fix {r.n}"
+    if o.compile_error:
+        return f"{label} ✗ compile"
+    good, total = o.report.counts()
+    return f"{label} {'✅ ' if o.passed else ''}{good}/{total}"
+
+
 LINK_LIMIT = {"telegram": 3000, "discord": 1500, "whatsapp": 3000, "signal": 1500, "sms": 0}
 
 
@@ -159,6 +179,8 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     lines = []
     if not progress.shown:
         lines += rounds_text + [""]
+    elif len(rounds) > 1:
+        lines.append("Rounds: " + " → ".join(_score(r) for r in rounds))
     if final.compile_error:
         lines.append("❌ The sketch still doesn't compile after the fixes:\n" + final.compile_error[:1500])
         return "\n".join(lines)
@@ -210,16 +232,29 @@ def _approve_and_build(ctx, ws, draft: dict, source, progress: _Progress, *, dem
     return _forge_and_report(ctx, ws, bench, sketch, progress, platform=platform)
 
 
-def _ask_approval(ctx, ws, bench, draft_id: str, progress: _Progress) -> Optional[str]:
+def _say(ctx, text: str) -> bool:
+    """A message of its own (sends wait their turn on Telegram; edits can be skipped). True if it went out."""
+    try:
+        handle = ctx.post_message(text)
+        return bool(getattr(handle, "ok", handle is not None))
+    except Exception:
+        logger.debug("benchforge post failed", exc_info=True)
+        return False
+
+
+def _ask_approval(ctx, ws, bench, draft_id: str, progress: _Progress) -> tuple:
+    """(the person's choice or None, the checks text if it could not be shown and must go in the reply)."""
     from .benchforge.report import approval_text
 
-    progress.add(approval_text(bench))
+    text = approval_text(bench)
+    shown = _say(ctx, text)
     n = len([1 for _ in bench.checks]) + len(bench.unplugged)
-    choice = ctx.ask_choice(f"Approve these {n} checks? The firmware will be judged by exactly these.", [
+    question = f"Approve these {n} checks? The firmware will be judged by exactly these."
+    choice = ctx.ask_choice(question if shown else f"{text}\n\n{question}", [
         {"value": "approve", "label": "✅ Approve and build"},
         {"value": "cancel", "label": "✖ Cancel"},
     ])
-    return choice
+    return choice, ("" if shown else text + "\n\n")
 
 
 def _cmd_new(ctx, ws, request: str, source) -> str:
@@ -230,9 +265,9 @@ def _cmd_new(ctx, ws, request: str, source) -> str:
     bench, notes = agent.write_bench(ctx.llm, request)
     did = ws.save_draft(bench, request, by=_who(source))
     progress.set_last(f"🧪 Draft {did}" + (f"\n⚠ Not simulated: {notes}" if notes else ""))
-    choice = _ask_approval(ctx, ws, bench, did, progress)
+    choice, unseen = _ask_approval(ctx, ws, bench, did, progress)
     if choice is None:
-        return (f"Saved as draft {did}. Send /bench approve {did} to lock these checks and build, "
+        return (f"{unseen}Saved as draft {did}. Send /bench approve {did} to lock these checks and build, "
                 "or /bench <new description> to start over.")
     if choice != "approve":
         return "Cancelled. Nothing was built."
@@ -256,9 +291,9 @@ def _cmd_demo(ctx, ws, source) -> str:
     did = ws.save_draft(bench, request, sketch=draft_sketch, by=_who(source))
     progress = _Progress(ctx)
     progress.add("🧪 Demo: a greenhouse fan controller, starting from a typical first-draft sketch.")
-    choice = _ask_approval(ctx, ws, bench, did, progress)
+    choice, unseen = _ask_approval(ctx, ws, bench, did, progress)
     if choice is None:
-        return f"Send /bench approve {did} to run the demo."
+        return f"{unseen}Send /bench approve {did} to lock these checks and run the demo."
     if choice != "approve":
         return "Cancelled."
     return _approve_and_build(ctx, ws, ws.load_draft(did), source, progress, demo_sketch=draft_sketch)

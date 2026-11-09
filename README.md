@@ -2,7 +2,7 @@
 
 **The flight simulator for AI-written Arduino firmware. Proven on the chip before it touches the world.**
 
-![A greenhouse fan controller running on BenchForge's simulated Arduino Uno: the temperature rises, the fan relay switches on, each check turns green](docs/board.gif)
+<p align="center"><img src="docs/board.gif" width="380" alt="A greenhouse fan controller running on BenchForge's simulated Arduino Uno: the temperature rises, the fan relay switches on, each check turns green"></p>
 
 Ask Hermes for Arduino code and you get something that compiles and looks right. Then it meets a real board. The relay buzzes because the temperature reading jitters. The status LED goes haywire after 49 days because the timer wrapped. One press of the button counts as five. And when the sensor wire works loose, the greenhouse fan switches off and the plants cook. You find these bugs after the wiring is done, with mains power, a motor or a heater on the other end.
 

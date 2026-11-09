@@ -13,7 +13,6 @@ from .checks import Trace
 from .gif import Canvas, write_gif
 from .spec import PART_TYPES, fmt_ms
 
-W, H = 640, 360
 
 PALETTE = [
     (13, 17, 23),     # 0 background
@@ -48,22 +47,60 @@ WIRES = [16, 15, 17, 18, 19, 9]
 SHORT = {"lm35": "LM35", "ntc": "NTC", "potentiometer": "pot", "hcsr04": "HC-SR04", "relay": "relay",
          "led": "LED", "buzzer": "buzzer", "servo": "servo", "button": "button", "digital_out": "output"}
 
-BOARD = (24, 92, 250, 176)          # x, y, w, h
-CARD_X, CARD_W, CARD_H = 330, 290, 46
+class Layout:
+    """Where things go. Portrait and phone first: the Uno on top, one card per part under it, then the
+    timeline and the step being checked in large type. Drawn 400 px wide and doubled, so text stays sharp
+    after a chat app re-encodes the animation and shrinks it to a phone's width."""
 
+    W = 400
+    CARD_X, CARD_W, CARD_H, GAP = 36, 350, 46, 8
+    LANES = 7                                              # wire lanes in the left gutter
 
-def _pin_xy(pin: str):
-    """Where a pin sits on the drawn Uno: digital header along the top, analog along the bottom."""
-    bx, by, bw, bh = BOARD
-    if pin.startswith("D"):
+    def __init__(self, n_parts: int):
+        self.board = (80, 80, 250, 176)                    # x, y, w, h
+        self.cards_y = 288
+        self.cards_end = self.cards_y + n_parts * (self.CARD_H + self.GAP) - self.GAP
+        self.serial_y = self.cards_end + 10
+        self.tl_y = self.cards_end + 38
+        self.step_y = self.tl_y + 32
+        self.H = self.step_y + 50
+
+    def card_y(self, i: int) -> int:
+        return self.cards_y + i * (self.CARD_H + self.GAP)
+
+    def pin_xy(self, pin: str):
+        """Where a pin sits on the drawn Uno: digital header along the top, analog along the bottom."""
+        bx, by, bw, bh = self.board
         n = int(pin[1:])
-        return bx + bw - 18 - (13 - n) * 15, by + 10
-    n = int(pin[1:])
-    return bx + bw - 18 - (5 - n) * 15, by + bh - 10
+        if pin.startswith("D"):
+            return bx + bw - 18 - (13 - n) * 15, by + 10
+        return bx + bw - 18 - (5 - n) * 15, by + bh - 10
 
 
-def _draw_board(c: Canvas, used: dict) -> None:
-    bx, by, bw, bh = BOARD
+def _wrap(text: str, per_line: int, lines: int) -> list:
+    """Split on spaces into at most ``lines`` lines; the last one ends in … if text is left over."""
+    words, out, cur = text.split(), [], ""
+    for w in words:
+        if len(cur) + len(w) + (1 if cur else 0) <= per_line:
+            cur = f"{cur} {w}" if cur else w
+            continue
+        if cur:
+            out.append(cur)
+        cur = w[:per_line]
+        if len(out) == lines:
+            break
+    if len(out) < lines and cur:
+        out.append(cur)
+        cur = ""
+    if len(out) > lines or (len(out) == lines and cur):
+        out = out[:lines]
+        last = out[-1]
+        out[-1] = (last[:per_line - 1] if len(last) >= per_line else last) + "…"
+    return out
+
+
+def _draw_board(c: Canvas, L: Layout, used: dict) -> None:
+    bx, by, bw, bh = L.board
     c.round_rect(bx, by, bw, bh, 10, UNO)
     c.round_rect(bx + 3, by + bh - 8, bw - 6, 5, 2, UNO2)
     c.rect(bx - 10, by + 30, 30, 34, PIN)                 # USB
@@ -73,38 +110,35 @@ def _draw_board(c: Canvas, used: dict) -> None:
         c.rect(bx + 74 + i * 7.6, by + 68, 3, 4, PIN)
         c.rect(bx + 74 + i * 7.6, by + 106, 3, 4, PIN)
     c.text(bx + 84, by + 82, "ATmega328P", DIM)
-    c.text(bx + 18, by + 120, "UNO", WHITE, "big")
-    c.text(bx + 20, by + 146, "16 MHz", DEEP)
-    for n in range(2, 14):
-        x, y = _pin_xy(f"D{n}")
-        on = f"D{n}" in used
-        c.rect(x - 4, y - 4, 9, 9, WIRES[used[f'D{n}'] % len(WIRES)] if on else CHIP)
-        if on:
-            label = f"D{n}"
-            c.text(x - Canvas.text_width(label) // 2 + 1, y + 7, label, WHITE)
-    for n in range(6):
-        x, y = _pin_xy(f"A{n}")
-        on = f"A{n}" in used
-        c.rect(x - 4, y - 4, 9, 9, WIRES[used[f'A{n}'] % len(WIRES)] if on else CHIP)
-        if on:
-            label = f"A{n}"
-            c.text(x - Canvas.text_width(label) // 2 + 1, y - 21, label, WHITE)
+    c.text(bx + 26, by + 120, "UNO", WHITE, "big")
+    c.text(bx + 26, by + 146, "16 MHz", DEEP)
+    for prefix, pins, dy in (("D", range(2, 14), 7), ("A", range(6), -21)):
+        row = 0
+        for n in pins:
+            pin = f"{prefix}{n}"
+            x, y = L.pin_xy(pin)
+            on = pin in used
+            c.rect(x - 4, y - 4, 9, 9, WIRES[used[pin] % len(WIRES)] if on else CHIP)
+            if not on:
+                row = 0
+                continue
+            # neighbouring pins are 15 px apart: stagger their labels so "D9" and "D10" don't run together
+            c.text(x - Canvas.text_width(pin) // 2 + 1, y + dy + (row * 15 if dy > 0 else -row * 15), pin, WHITE)
+            row = 1 - row
 
 
-def _wire(c: Canvas, pin: str, card_y: int, color: int, slot: int) -> None:
-    px, py = _pin_xy(pin)
-    tx, ty = CARD_X - 2, card_y + CARD_H // 2
-    lane = BOARD[0] + BOARD[2] + 14 + slot * 6
-    if pin.startswith("D"):
-        c.line(px, py, px, BOARD[1] - 10 - slot * 3, color, 2)
-        c.line(px, BOARD[1] - 10 - slot * 3, lane, BOARD[1] - 10 - slot * 3, color, 2)
-        top = BOARD[1] - 10 - slot * 3
-    else:
-        c.line(px, py, px, BOARD[1] + BOARD[3] + 10 + slot * 3, color, 2)
-        c.line(px, BOARD[1] + BOARD[3] + 10 + slot * 3, lane, BOARD[1] + BOARD[3] + 10 + slot * 3, color, 2)
-        top = BOARD[1] + BOARD[3] + 10 + slot * 3
-    c.line(lane, top, lane, ty, color, 2)
-    c.line(lane, ty, tx, ty, color, 2)
+def _wire(c: Canvas, L: Layout, pin: str, card_y: int, color: int, slot: int) -> None:
+    """Pin → out of the board → down the left gutter → into the part's card."""
+    px, py = L.pin_xy(pin)
+    bx, by, bw, bh = L.board
+    ty = card_y + L.CARD_H // 2
+    slot = slot % L.LANES
+    lane = 6 + slot * 4
+    exit_y = by - 8 - slot * 3 if pin.startswith("D") else by + bh + 8 + slot * 3
+    c.line(px, py, px, exit_y, color, 2)
+    c.line(px, exit_y, lane, exit_y, color, 2)
+    c.line(lane, exit_y, lane, ty, color, 2)
+    c.line(lane, ty, L.CARD_X - 2, ty, color, 2)
 
 
 def _fan(c: Canvas, cx: int, cy: int, angle: float, on: bool) -> None:
@@ -118,13 +152,14 @@ def _fan(c: Canvas, cx: int, cy: int, angle: float, on: bool) -> None:
     c.circle(cx, cy, 3, CARD)
 
 
-def _card(c: Canvas, part: dict, y: int, state: dict, color: int, t_frame: int) -> None:
+def _card(c: Canvas, L: Layout, part: dict, y: int, state: dict, color: int) -> None:
+    CARD_X, CARD_W, CARD_H = L.CARD_X, L.CARD_W, L.CARD_H
     c.round_rect(CARD_X, y, CARD_W, CARD_H, 8, CARD)
     c.rect(CARD_X, y + 8, 3, CARD_H - 16, color)
     pid, ptype = part["id"], part["type"]
     pins = "/".join(part["pins"].values())
-    c.text(CARD_X + 62, y + 7, pid, TEXT)
-    c.text(CARD_X + 62, y + 25, f"{SHORT.get(ptype, ptype)} · {pins}", DIM)
+    c.text(CARD_X + 62, y + 4, pid, TEXT, "big")
+    c.text(CARD_X + 62, y + 27, f"{SHORT.get(ptype, ptype)} · {pins}", DIM)
     ix, iy = CARD_X + 30, y + CARD_H // 2
     vx = CARD_X + CARD_W - 12
     value, vcolor = "", TEXT
@@ -245,8 +280,11 @@ def _states(bench, trace: Trace, t: int, prev_t: int, spins: dict, pwm: dict) ->
 
 
 def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, score: str,
-           unplugged_at: dict | None = None, max_frames: int = 120) -> bytes:
-    """The main run as a GIF. ``results`` are that run's check results (to colour each step)."""
+           unplugged_at: dict | None = None, max_frames: int = 120, scale: int = 2,
+           crash_failures: list | None = None) -> bytes:
+    """The main run as a GIF. ``results`` are that run's check results (to colour each step);
+    ``crash_failures`` names the crash tests that failed, for the closing frame."""
+    crash_failures = crash_failures or []
     trace = Trace(bench, run)
     dur = run["duration_ms"]
     step_ms = max(100, int(math.ceil(dur / max_frames / 100.0)) * 100)
@@ -257,23 +295,26 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
         for pin in p["pins"].values():
             used[pin] = i
 
+    parts = list(bench.parts.values())[:6]
+    L = Layout(len(parts))
+    W, H = L.W, L.H
     base = Canvas(W, H, BG)
-    base.text(20, 12, "BenchForge", CYAN, "big")
-    base.text(20 + Canvas.text_width("BenchForge ", "big"), 17, bench.name, DIM)
+    base.text(14, 12, "BenchForge", CYAN, "big")
+    sub = f"{bench.name} · {title}"
+    base.text(14, 38, sub if len(sub) <= 52 else sub[:51] + "…", DIM)
     badge = f"{'✓' if verdict_ok else '✗'} {score}"
     bw = Canvas.text_width(badge, "big") + 20
-    base.round_rect(W - bw - 20, 9, bw, 28, 8, DKGREEN if verdict_ok else DKRED)
-    base.text(W - bw - 10, 12, badge, WHITE, "big")
-    base.text(W - bw - 20 - Canvas.text_width(title) - 10, 17, title, DIM)
-    _draw_board(base, used)
-    parts = list(bench.parts.values())[:5]
-    gap = 6 if len(parts) > 4 else 10
-    ys = [52 + i * (CARD_H + gap) for i in range(len(parts))]
+    base.round_rect(W - bw - 14, 12, bw, 28, 8, DKGREEN if verdict_ok else DKRED)
+    base.text(W - bw - 4, 15, badge, WHITE, "big")
+    _draw_board(base, L, used)
+    ys = [L.card_y(i) for i in range(len(parts))]
+    slot = 0
     for i, (p, y) in enumerate(zip(parts, ys)):
-        for slot, pin in enumerate(p["pins"].values()):
-            _wire(base, pin, y, WIRES[i % len(WIRES)], i + slot)
-    # timeline with one segment per step, coloured by its result
-    tl_x, tl_y, tl_w = 20, 314, W - 40
+        for pin in p["pins"].values():
+            _wire(base, L, pin, y, WIRES[i % len(WIRES)], slot)
+            slot += 1
+    # the timeline: one segment per step, coloured by its result
+    tl_x, tl_y, tl_w = 14, L.tl_y, W - 28
     base.rect(tl_x, tl_y, tl_w, 6, LINE)
     for c in bench.steps:
         r = by_id.get(c.id)
@@ -284,6 +325,7 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
     frames, spins = [], {}
     pwm = _pwm_parts(bench, trace)
     serial = run.get("serial", {}).get("lines", [])
+    per_line = (W - 28) // Canvas.text_width("x", "big")
     prev = 0
     for t in range(0, dur, step_ms):
         c = base.copy()
@@ -292,34 +334,63 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
             if t >= when and sid in states:
                 states[sid]["unplugged"] = True
         for i, (p, y) in enumerate(zip(parts, ys)):
-            _card(c, p, y, states[p["id"]], WIRES[i % len(WIRES)], t)
+            _card(c, L, p, y, states[p["id"]], WIRES[i % len(WIRES)])
         last = next((txt for at, txt in reversed(serial) if at <= t), None)
         if last is not None:
-            shown = "".join(ch if 32 <= ord(ch) < 127 else "?" for ch in last)[:52]
-            c.text(20, 290, "Serial: " + shown, DIM)
+            shown = "".join(ch if 32 <= ord(ch) < 127 else "?" for ch in last)
+            room = (W - 28) // Canvas.text_width("x") - 8
+            c.text(14, L.serial_y, "Serial: " + (shown if len(shown) <= room else shown[:room - 1] + "…"), DIM)
         x = tl_x + tl_w * t / dur
         c.rect(x - 1, tl_y - 5, 3, 16, WHITE)
         clock = f"{t / 1000:.1f} s" + (f"  ×{speed:g}" if speed > 1 else "")
-        c.text(tl_x, tl_y + 14, clock, DIM)
+        c.text(W - 14 - Canvas.text_width(clock), tl_y + 12, clock, DIM)
         step = next((s for s in bench.steps if s.window.start_ms <= t < s.window.end_ms), None)
         if step is not None:
             n = bench.steps.index(step) + 1
             r = by_id.get(step.id)
-            mark = "" if r is None else (" ✓" if r.passed else " ✗")
-            line = f"{n}. {step.text}"
-            room = (W - 40 - Canvas.text_width(clock) - 20) // 7 - 3
-            if len(line) > room:
-                line = line[:room - 1] + "…"
-            lx = tl_x + Canvas.text_width(clock) + 20
-            end = c.text(lx, tl_y + 14, line, TEXT)
-            if mark:
-                c.text(end, tl_y + 14, mark, GREEN if r.passed else RED)
+            end = c.text(tl_x, tl_y + 12, f"Check {n} of {len(bench.steps)}", DIM)
+            if r is not None:
+                c.text(end + 7, tl_y + 12, "✓ pass" if r.passed else "✗ FAIL", GREEN if r.passed else RED)
+            for k, line in enumerate(_wrap(step.text, per_line, 2)):
+                c.text(tl_x, L.step_y + k * 23, line, TEXT, "big")
+        elif bench.steps and t >= bench.steps[-1].window.end_ms:
+            # the tail of the run, which the last frame holds: say how it went
+            failed = [s for s in bench.steps if by_id.get(s.id) is not None and not by_id[s.id].passed]
+            c.text(tl_x, tl_y + 12, "Result", DIM)
+            if failed:
+                c.text(tl_x, L.step_y, f"✗ Check {bench.steps.index(failed[0]) + 1} failed", RED, "big")
+                c.text(tl_x, L.step_y + 23, _wrap(failed[0].text, per_line, 1)[0], TEXT, "big")
+            else:
+                c.text(tl_x, L.step_y, f"✓ All {len(bench.steps)} checks passed", GREEN, "big")
+                if crash_failures:
+                    first = crash_failures[0].split(" (")[0]           # "Bouncy button (5 ms ...)" → "Bouncy button"
+                    more = f" +{len(crash_failures) - 1} more" if len(crash_failures) > 1 else ""
+                    why = f"✗ Failed: {first}{more}"
+                    c.text(tl_x, L.step_y + 23, _wrap(why, per_line, 1)[0], RED, "big")
+                else:
+                    c.text(tl_x, L.step_y + 23, "on the simulated chip", TEXT, "big")
         frames.append(c.px)
         prev = t
     delays = [10] * len(frames)
     if delays:
         delays[-1] = 200
-    return write_gif(frames, PALETTE, delays, W, H)
+    if scale == 2:
+        frames = [_double(f, W, H) for f in frames]
+    return write_gif(frames, PALETTE, delays, W * scale, H * scale)
+
+
+def _double(px: bytearray, w: int, h: int) -> bytearray:
+    """Nearest-neighbour 2x: chat apps re-encode animations, and crisp double-size pixels survive it."""
+    out = bytearray(w * h * 4)
+    row2 = bytearray(w * 2)
+    for y in range(h):
+        row = px[y * w:(y + 1) * w]
+        row2[0::2] = row
+        row2[1::2] = row
+        o = y * 4 * w
+        out[o:o + 2 * w] = row2
+        out[o + 2 * w:o + 4 * w] = row2
+    return out
 
 
 def render_report(report, build_ok: bool = True) -> bytes | None:
@@ -328,5 +399,6 @@ def render_report(report, build_ok: bool = True) -> bytes | None:
     if main.trace is None or main.error:
         return None
     good, total = report.counts()
+    crashes = [run.title for run in report.runs[1:] if not run.passed and not run.skipped]
     return render(report.bench, main.trace, main.results, title="simulated run",
-                  verdict_ok=report.passed, score=f"{good}/{total}")
+                  verdict_ok=report.passed, score=f"{good}/{total}", crash_failures=crashes)

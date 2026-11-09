@@ -107,6 +107,7 @@ class FakeCtx:
 
 _install_fake_hermes()
 plugin = load_plugin()
+plugin._Progress.GAP_S = 0          # no Telegram pacing needed against the stand-in
 
 
 def ready() -> bool:
@@ -132,6 +133,17 @@ class Registration(unittest.TestCase):
         guide = json.loads(ctx.tools["bench_guide"]({}))
         self.assertIn("BENCH FORMAT", guide["format"])
         self.assertEqual(guide["example"]["name"], "greenhouse-fan")
+
+    def test_checks_go_in_the_reply_when_they_cannot_be_posted(self):
+        ctx = FakeCtx(answer=None)
+
+        def down(text):
+            raise RuntimeError("no gateway")
+        ctx.post_message = down
+        plugin.register(ctx)
+        reply = ctx.commands["bench"]("demo", source=None)
+        self.assertIn("Wiring (Arduino Uno)", reply)
+        self.assertIn("/bench approve", reply)
 
     def test_gate_ignores_everything_but_flashing(self):
         ctx = FakeCtx()
