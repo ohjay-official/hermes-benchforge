@@ -134,17 +134,6 @@ class Registration(unittest.TestCase):
         self.assertIn("BENCH FORMAT", guide["format"])
         self.assertEqual(guide["example"]["name"], "greenhouse-fan")
 
-    def test_checks_go_in_the_reply_when_they_cannot_be_posted(self):
-        ctx = FakeCtx(answer=None)
-
-        def down(text):
-            raise RuntimeError("no gateway")
-        ctx.post_message = down
-        plugin.register(ctx)
-        reply = ctx.commands["bench"]("demo", source=None)
-        self.assertIn("Wiring (Arduino Uno)", reply)
-        self.assertIn("/bench approve", reply)
-
     def test_gate_ignores_everything_but_flashing(self):
         ctx = FakeCtx()
         plugin.register(ctx)
@@ -192,6 +181,17 @@ class EndToEnd(unittest.TestCase):
         self.assertIn("Not green", reply)
         self.assertIn("Receipt", reply)
         self.assertTrue(any("model call failed" in p for p in ctx.posts), ctx.posts)
+
+    def test_checks_go_in_the_reply_when_they_cannot_be_posted(self):
+        ctx = FakeCtx(answer=None)
+
+        def down(text):
+            raise RuntimeError("no gateway")
+        ctx.post_message = down
+        plugin.register(ctx)
+        reply = ctx.commands["bench"]("demo", source=None)
+        self.assertIn("Wiring (Arduino Uno)", reply)
+        self.assertIn("/bench approve", reply)
 
     def test_cancel_builds_nothing(self):
         ctx = FakeCtx(answer="cancel")
