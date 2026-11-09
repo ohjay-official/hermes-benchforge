@@ -79,7 +79,7 @@ def main() -> int:
     if not key:
         print("GEMINI_API_KEY is not set")
         return 2
-    llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-2.5-flash")
+    llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-3.8-flash")
     ws = Workspace(Path(os.environ.get("BENCHFORGE_HOME") or tempfile.mkdtemp()))
     ok, missing = ws.ready()
     if not ok:

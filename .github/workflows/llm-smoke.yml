@@ -8,7 +8,7 @@ on:
     inputs:
       model:
         description: "Gemini model"
-        default: "gemini-2.5-flash"
+        default: "gemini-3.8-flash"
 
 permissions:
   contents: read
