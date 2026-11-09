@@ -1,0 +1,89 @@
+name: demo bot
+
+# A Hermes gateway with BenchForge, on Telegram, for a few hours: for filming and for judges to try.
+# Needs three repository secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, GEMINI_API_KEY.
+# Start it from the Actions tab ("demo bot" → Run workflow); stop it with "Cancel run".
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Hours to stay online (1 to 5)"
+        default: "3"
+      model:
+        description: "Gemini model"
+        default: "gemini-2.5-flash"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-bot
+  cancel-in-progress: true
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Check the secrets are there (values are never printed)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          missing=""
+          [ -n "$TELEGRAM_BOT_TOKEN" ] || missing="$missing TELEGRAM_BOT_TOKEN"
+          [ -n "$TELEGRAM_ALLOWED_USERS" ] || missing="$missing TELEGRAM_ALLOWED_USERS"
+          [ -n "$GEMINI_API_KEY" ] || missing="$missing GEMINI_API_KEY"
+          if [ -n "$missing" ]; then echo "::error::Missing repository secrets:$missing"; exit 1; fi
+
+      - name: Install Hermes Agent
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure the model and Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          umask 077
+          mkdir -p "$HOME/.hermes"
+          {
+            printf 'GOOGLE_API_KEY=%s\n' "$GEMINI_API_KEY"
+            printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
+            printf 'TELEGRAM_ALLOWED_USERS=%s\n' "$TELEGRAM_ALLOWED_USERS"
+          } >> "$HOME/.hermes/.env"
+          hermes config set model.provider gemini
+          hermes config set model.default "$MODEL"
+          hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
+
+      - name: Install BenchForge from this commit
+        run: |
+          mkdir -p "$HOME/.hermes/plugins/benchforge"
+          git archive HEAD | tar -x -C "$HOME/.hermes/plugins/benchforge"
+          hermes plugins enable benchforge
+          hermes plugins list || true
+
+      - name: Set up the Arduino compiler
+        run: hermes bench setup
+
+      - name: Prove the toolchain before going live
+        run: hermes bench demo | tail -8
+
+      - name: Run the Telegram gateway
+        env:
+          HOURS: ${{ inputs.hours }}
+        run: |
+          h="${HOURS:-3}"
+          case "$h" in 1|2|3|4|5) ;; *) h=3 ;; esac
+          echo "BenchForge demo bot is online for $h hour(s). Message your bot on Telegram: /bench demo"
+          timeout "${h}h" hermes gateway run || [ $? -eq 124 ]

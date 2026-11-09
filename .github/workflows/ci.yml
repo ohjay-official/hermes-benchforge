@@ -61,3 +61,10 @@ jobs:
         run: hermes plugins validate . --install-deps
       - name: hermes plugins doctor
         run: hermes plugins doctor . --ci
+      - name: Install into a real Hermes and run it there
+        run: |
+          mkdir -p "$HOME/.hermes/plugins/benchforge"
+          git archive HEAD | tar -x -C "$HOME/.hermes/plugins/benchforge"
+          hermes plugins enable benchforge
+          hermes bench setup
+          hermes bench demo
