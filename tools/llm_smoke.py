@@ -107,6 +107,28 @@ def probe(key: str) -> int:
     return 0
 
 
+def demo_only(ws, llm, times: int) -> int:
+    """The /bench demo path, several times: how often a model gets the first draft to green, and how fast."""
+    from benchforge.spec import load
+
+    ex = ROOT / "examples" / "greenhouse-fan"
+    bench = load((ex / "bench.json").read_text(encoding="utf-8"))
+    results = []
+    for i in range(times):
+        print(f"\n━━ /bench demo, try {i + 1}")
+        t = time.time()
+        rounds = ws.forge(bench, (ex / "draft.ino").read_text(encoding="utf-8"), agent.fixer(llm, bench),
+                          progress=lambda r: print(f"   round {r.n}: " + (
+                              "compile error" if r.outcome.compile_error else
+                              f"{r.outcome.report.counts()[0]}/{r.outcome.report.counts()[1]}") +
+                              (f" · {r.change}" if r.change else ""), flush=True))
+        ok = rounds[-1].outcome.passed
+        results.append((ok, len(rounds) - 1, time.time() - t))
+        print(f"   → {'GREEN' if ok else 'NOT GREEN'} after {len(rounds) - 1} fixes, {time.time() - t:.0f} s")
+    print("\n" + ", ".join(f"{'green' if ok else 'red'} ({n} fixes, {sec:.0f} s)" for ok, n, sec in results))
+    return 0 if all(ok for ok, _, _ in results) else 1
+
+
 def main() -> int:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -129,6 +151,9 @@ def main() -> int:
     if not ok:
         print(f"missing {missing}")
         return 2
+    demo_times = int(os.environ.get("DEMO_TIMES") or 0)       # >0: only the /bench demo path, that many times
+    if demo_times:
+        return demo_only(ws, llm, demo_times)
     green = 0
     for req in REQUESTS:
         print(f"\n━━ {req}")

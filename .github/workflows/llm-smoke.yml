@@ -9,6 +9,9 @@ on:
       model:
         description: "Gemini model"
         default: "gemini-3.5-flash"
+      demo_times:
+        description: "Only run /bench demo this many times (0 = the full smoke test)"
+        default: "0"
 
 permissions:
   contents: read
@@ -31,4 +34,5 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MODEL: ${{ inputs.model }}
+          DEMO_TIMES: ${{ inputs.demo_times }}
         run: python -u tools/llm_smoke.py "$MODEL"
