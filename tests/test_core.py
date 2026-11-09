@@ -108,23 +108,23 @@ class SketchScanner(unittest.TestCase):
         self.assertEqual(build.scan("#include <Servo.h>\n#include \"EEPROM.h\"\n" + GOOD), [])
 
     def test_strings_and_comments_are_not_directives(self):
-        src = 'const char *s = "#include </etc/passwd>";\n// #include "x.h"\n/* #pragma */\n' + \
-              'const char *r = R"(\n#include "/etc/shadow"\n)";\n' + GOOD
+        src = 'const char *s = "#include </srv/notes/plan.h>";\n// #include "x.h"\n/* #pragma */\n' + \
+              'const char *r = R"(\n#include "/srv/notes/diary.h"\n)";\n' + GOOD
         self.assertEqual(build.scan(src), [])
 
     def test_file_reads_are_refused(self):
-        self.assertRefused('#include "/etc/passwd"\n' + GOOD, "not on BenchForge's list")
+        self.assertRefused('#include "/srv/notes/plan.h"\n' + GOOD, "not on BenchForge's list")
         self.assertRefused("#include <../../secrets.h>\n" + GOOD, "not on BenchForge's list")
         self.assertRefused("#include <WiFi.h>\n" + GOOD, "not on BenchForge's list")
-        self.assertRefused('#inc\\\nlude "/etc/passwd"\n' + GOOD, "/etc/passwd")
-        self.assertRefused('/* x */ # include "/etc/passwd"\n' + GOOD, "/etc/passwd")
-        self.assertRefused('%:include "/etc/passwd"\n' + GOOD, "/etc/passwd")
-        self.assertRefused("#define F </etc/passwd>\n#include F\n" + GOOD, "#include must name")
+        self.assertRefused('#inc\\\nlude "/srv/notes/plan.h"\n' + GOOD, "/srv/notes/plan.h")
+        self.assertRefused('/* x */ # include "/srv/notes/plan.h"\n' + GOOD, "/srv/notes/plan.h")
+        self.assertRefused('%:include "/srv/notes/plan.h"\n' + GOOD, "/srv/notes/plan.h")
+        self.assertRefused("#define F </srv/notes/plan.h>\n#include F\n" + GOOD, "#include must name")
         self.assertRefused("#include_next <Arduino.h>\n" + GOOD, "#include_next is not allowed")
-        self.assertRefused('#pragma GCC dependency "/etc/passwd"\n' + GOOD, "#pragma is not allowed")
+        self.assertRefused('#pragma GCC dependency "/srv/notes/plan.h"\n' + GOOD, "#pragma is not allowed")
 
     def test_assembler_tricks_are_refused(self):
-        self.assertRefused('asm(".incbin \\"/etc/passwd\\"");\n' + GOOD, "asm is not allowed")
+        self.assertRefused('asm(".incbin \\"/srv/notes/plan.h\\"");\n' + GOOD, "asm is not allowed")
         self.assertRefused('__asm__ volatile ("nop");\n' + GOOD, "__asm__ is not allowed")
         self.assertRefused('_Pragma("GCC poison x")\n' + GOOD, "_Pragma is not allowed")
         # building the asm keyword from pieces, and hiding ".incbin" in joined or escaped strings

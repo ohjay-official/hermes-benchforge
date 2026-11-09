@@ -68,7 +68,7 @@ class MisbehavingFirmware(unittest.TestCase):
         self.assertIn("error", out.brief().lower())
 
     def test_refused_sketch_never_compiles(self):
-        out = run('#include "/etc/passwd"\nvoid setup(){}\nvoid loop(){}\n')
+        out = run('#include "/srv/notes/plan.h"\nvoid setup(){}\nvoid loop(){}\n')
         self.assertIn("not on BenchForge's list", out.compile_error)
 
     def test_serial_flood_is_capped(self):
