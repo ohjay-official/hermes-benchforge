@@ -9,7 +9,7 @@ on:
     inputs:
       model:
         description: "Gemini model"
-        default: "gemini-3.5-flash"
+        default: "gemini-3.5-flash-lite"
 
 permissions:
   contents: read
@@ -46,6 +46,16 @@ jobs:
           hermes config set model.default "$MODEL"
           hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
           hermes config set agent.reasoning_effort low
+          # Gemini's free tier allows about 20 requests per model per day; move on to the next model when one runs out
+          cfg="$HOME/.hermes/config.yaml"
+          grep -q '^fallback_providers: *\[\] *$' "$cfg" && sed -i '/^fallback_providers: *\[\] *$/d' "$cfg"
+          cat >> "$cfg" <<'YAML'
+          fallback_providers:
+            - provider: gemini
+              model: gemini-flash-lite-latest
+            - provider: gemini
+              model: gemini-3-flash-preview
+          YAML
       - name: Install BenchForge from this commit
         run: |
           mkdir -p "$HOME/.hermes/plugins/benchforge"
@@ -61,4 +71,7 @@ jobs:
         run: python3 -u tools/agent_e2e.py
       - name: Gateway log (BenchForge lines)
         if: always()
-        run: grep -i "benchforge\|bench_test\|bench_guide\|flash gate\|Traceback" gateway.log | tail -60 || true
+        run: |
+          grep -i "benchforge\|bench_test\|bench_guide\|flash gate" gateway.log | tail -60 || true
+          echo "── errors ──"
+          grep -A14 "Traceback" gateway.log | grep -v "^\s*$" | tail -80 || true
