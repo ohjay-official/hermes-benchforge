@@ -23,7 +23,7 @@ from benchforge.spec import load  # noqa: E402
 
 def main(out: Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
-    for f in ("index.html", "style.css", "app.js", "inflate.js"):
+    for f in ("index.html", "style.css", "app.js", "inflate.js", "favicon.svg"):
         shutil.copy(ROOT / "web" / f, out / f)
     if (ROOT / "web" / "dicts").is_dir():                       # every link dictionary ever used
         shutil.copytree(ROOT / "web" / "dicts", out / "dicts", dirs_exist_ok=True)
