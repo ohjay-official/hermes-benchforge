@@ -216,6 +216,7 @@ On every push, CI compiles all ten sketches with the real arduino-cli on Linux a
 | Flash gate | Works; unit and end-to-end tests |
 | `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests; `hermes plugins validate` and `doctor` pass in CI |
 | Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, and the page is tested in Chromium at phone size |
+| The whole loop with a real model | Works: on gemini-3.5-flash, three plain-English requests (greenhouse fan, button lamp, parking sensor) all reached green, and `/bench demo` went from 20/23 to 22/22 in two fixes and 19 seconds ([`tools/llm_smoke.py`](tools/llm_smoke.py), run on demand in CI) |
 | Live run on Telegram with a real model | Being filmed for the demo; this row is updated when it's done |
 | Windows | Not tested yet |
 | Other boards (ESP32, Mega, Nano Every), I2C/SPI parts, displays | Not yet: the Uno and the parts above only |
