@@ -28,6 +28,8 @@ TERMINAL_TOOLS = {"terminal"}
 
 
 def _segments(command: str) -> list:
+    if os.name == "nt":                     # Windows paths: backslashes are separators, not escapes
+        command = command.replace("\\", "\\\\")
     try:
         lex = shlex.shlex(command, posix=True, punctuation_chars=";&|")
         lex.whitespace_split = True
