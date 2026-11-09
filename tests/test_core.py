@@ -231,10 +231,13 @@ class FlashGate(unittest.TestCase):
         self.hex_path = self.dir / "fw.hex"
         self.hex_path.write_bytes(self.hex)
 
-    def stamp(self, verdict):
+    def stamp(self, verdict, approved=True):
         r = fake_receipt(verdict, self.hex)
         rp, _ = receipt.save(r, self.hex.decode(), self.dir / "receipts")
         gate.mark_passing(r, rp, self.dir)
+        if approved:
+            from benchforge.forge import Workspace
+            Workspace(self.dir).approve(bench(), by="test")
         return r
 
     def decide(self, cmd, **extra):
@@ -260,6 +263,10 @@ class FlashGate(unittest.TestCase):
         self.assertIsNone(self.decide(f"avrdude -p m328p -U flash:w:{self.hex_path}:i"))
         self.assertIsNone(self.decide("arduino-cli upload -p COM3 --fqbn arduino:avr:uno --input-file fw.hex",
                                       workdir=str(self.dir)))
+
+    def test_unapproved_checks_do_not_count(self):
+        self.stamp("pass", approved=False)
+        self.assertEqual(self.decide(f"avrdude -U flash:w:{self.hex_path}")["action"], "block")
 
     def test_a_tampered_receipt_does_not_count(self):
         self.stamp("pass")

@@ -71,6 +71,7 @@ def cmd_run(a) -> int:
     _need_ready(ws)
     bench = load(Path(a.bench).read_text(encoding="utf-8"))
     sketch = Path(a.sketch).read_text(encoding="utf-8")
+    ws.approve(bench, by="command line")          # you ran it with this bench: that is the approval
     out = ws.test(bench, sketch, crash=not a.no_crash)
     return _show(out, as_json=a.json)
 
@@ -96,6 +97,7 @@ def cmd_demo(_a) -> int:
     ex = ROOT / "examples" / "greenhouse-fan"
     bench = load((ex / "bench.json").read_text(encoding="utf-8"))
     print(R.approval_text(bench))
+    ws.approve(bench, by="command line demo")
     for label, f in (("First draft", "draft.ino"), ("After fixes", "fixed.ino")):
         print(f"\n━━ {label} ({f}) ━━")
         out = ws.test(bench, (ex / f).read_text(encoding="utf-8"))

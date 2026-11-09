@@ -1,0 +1,20 @@
+name: benchforge
+version: 1.0.0
+manifest_version: 2
+api_version: 1
+description: >-
+  The flight simulator for AI-written Arduino firmware. Describe what the board should do; approve
+  the checks in plain English; BenchForge compiles the sketch with arduino-cli, runs it instruction by
+  instruction on a simulated ATmega328P with simulated sensors and relays, crash-tests it (noisy
+  sensors, button bounce, millis() rollover, a cut sensor wire) and lets Hermes fix it until every
+  check passes. Only firmware with a passing receipt may be flashed by the agent.
+author: Oh-Jay (ohjay-official)
+license: MIT
+homepage: https://github.com/ohjay-official/hermes-benchforge
+tags: [arduino, firmware, hardware, embedded, testing, simulation, iot]
+requires_hermes: ">=0.23.0"
+provides_tools:
+  - bench_guide
+  - bench_test
+provides_hooks:
+  - pre_tool_call

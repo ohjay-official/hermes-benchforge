@@ -7,16 +7,18 @@
 
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
 import json
 import re
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import build as B
 from . import gate, receipt
 from .bench import fix_brief, run_bench
-from .spec import Bench
+from .spec import Bench, describe, wiring
 from .toolchain import Toolchain, ToolchainError, node_version
 
 MAX_FIX_ROUNDS = 5
@@ -136,6 +138,60 @@ class Workspace:
         self.rounds = rounds
         return rounds
 
+    # ------------------------------------------------------------ approvals, drafts, bundles
+
+    def approve(self, bench: Bench, by: str = "") -> None:
+        """Record that a person approved this exact bench (by its hash). Only firmware that passes an
+        approved bench may go through the flash gate."""
+        d = self.data_dir / "approved"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{bench.sha256}.json").write_text(json.dumps(
+            {"bench": bench.name, "by": by[:80], "at": _now(), "checks": describe(bench)}, ensure_ascii=False))
+
+    def is_approved(self, bench_sha: str) -> bool:
+        return bool(re.fullmatch(r"[0-9a-f]{64}", bench_sha or "")) and \
+            (self.data_dir / "approved" / f"{bench_sha}.json").is_file()
+
+    def save_draft(self, bench: Bench, request: str, sketch: str = "", by: str = "") -> str:
+        did = hashlib.sha256((bench.sha256 + request + sketch).encode()).hexdigest()[:6]
+        d = self.data_dir / "drafts"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{did}.json").write_text(json.dumps({"id": did, "request": request, "bench": bench.raw,
+                                                   "sketch": sketch, "by": by[:80], "at": _now()},
+                                                  ensure_ascii=False, indent=1))
+        return did
+
+    def load_draft(self, did: str):
+        did = (did or "").strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{6}", did):
+            return None
+        try:
+            return json.loads((self.data_dir / "drafts" / f"{did}.json").read_text())
+        except (OSError, ValueError):
+            return None
+
+    def bundle(self, out: Outcome) -> Path | None:
+        """One zip a person can download: sketch, firmware, receipt and how to flash it."""
+        if out.build is None or out.receipt_path is None:
+            return None
+        name = f"{out.bench.name}-{out.build.hex_sha256[:12]}"
+        d = self.data_dir / "bundles"
+        d.mkdir(parents=True, exist_ok=True)
+        path = d / f"{name}.zip"
+        how = (f"BenchForge {'PASSED' if out.passed else 'DID NOT PASS'}: {out.bench.name}\n"
+               f"Receipt {out.receipt['id']} · firmware sha256 {out.build.hex_sha256}\n\n"
+               "Wiring (Arduino Uno):\n" + "\n".join(f"  {w}" for w in wiring(out.bench)) + "\n\n"
+               "Checks:\n" + "\n".join(f"  {c}" for c in describe(out.bench)) + "\n\n")
+        if out.passed:
+            how += (f"Flash it (Arduino Uno on USB):\n  arduino-cli upload -p <port> --fqbn arduino:avr:uno "
+                    f"--input-file {name}.hex\n  (or open {out.bench.name}.ino in the Arduino IDE and upload)\n")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(f"{out.bench.name}.ino", out.sketch)
+            z.writestr(f"{name}.hex", out.build.hex)
+            z.writestr(f"{name}.receipt.json", out.receipt_path.read_text(encoding="utf-8"))
+            z.writestr("README.txt", how)
+        return path
+
     def verify(self, rec: dict, sketch: str) -> list:
         """Rebuild and re-run a receipt's bench. Returns differences in words (empty: verified)."""
         problems = receipt.check_integrity(rec)
@@ -148,6 +204,10 @@ class Workspace:
         if out.compile_error:
             return ["the sketch no longer compiles: " + out.compile_error[:300]]
         return receipt.compare(rec, out.receipt)
+
+
+def _now() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _sketch_name(name: str) -> str:

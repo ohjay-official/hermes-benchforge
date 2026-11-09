@@ -87,6 +87,8 @@ def _passing(sha: str, data_dir: Path):
         return None
     if check_integrity(receipt) or receipt.get("verdict") != "pass" or receipt["firmware"]["sha256"] != sha:
         return None
+    if not (data_dir / "approved" / f"{receipt['bench']['sha256']}.json").is_file():
+        return None                       # passed, but against checks no person approved
     return receipt
 
 
@@ -121,9 +123,9 @@ def decide(tool_name: str, args: dict, data_dir: Path):
                 return _block(f"BenchForge can't read {raw} to check its receipt.")
             sha = hashlib.sha256(data).hexdigest()
             if _passing(sha, data_dir) is None:
-                return _block(f"{p.name} (firmware {sha[:12]}) has no passing BenchForge receipt. "
-                              "Run /bench on the sketch; only firmware that passes every check is allowed onto "
-                              "a real board.")
+                return _block(f"{p.name} (firmware {sha[:12]}) has no passing BenchForge receipt for checks a "
+                              "person approved. Run /bench on the sketch; only firmware that passes every approved "
+                              "check is allowed onto a real board.")
     return None
 
 
