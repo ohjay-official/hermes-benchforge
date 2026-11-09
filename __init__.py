@@ -22,16 +22,23 @@ PLUGIN_NAME = "benchforge"
 _HERE = Path(__file__).resolve().parent
 logger = logging.getLogger(__name__)
 
-HELP = """🧪 BenchForge: firmware is proven on a simulated Arduino Uno before it touches the world.
+HELP = """🧪 BenchForge proves Arduino firmware on a simulated Uno before it touches a real board.
+
+/bench demo
+Watch it test and fix a greenhouse fan controller's first draft.
 
 /bench <what the board should do>
-    e.g. /bench greenhouse fan: LM35 on A0, relay on D7 on above 30 °C and off below 27 °C, LED on D13 blinks every second
-    You approve the checks in plain English; Hermes writes the sketch, BenchForge compiles it, runs it on a
-    simulated ATmega328P, crash-tests it and has Hermes fix it until every check passes.
-/bench demo      the greenhouse fan, starting from a typical first-draft sketch
-/bench approve <id>   approve a saved draft and build it
-/bench status    is the compiler set up? latest results
-/bench setup     install the pinned Arduino compiler (one time, about 150 MB)"""
+For example: /bench greenhouse fan: LM35 on A0, relay on D7 on above 30 °C and off below 27 °C, LED on D13 blinks every second
+You approve the checks in plain English. Hermes writes the sketch; BenchForge compiles it, runs it on a simulated ATmega328P, crash-tests it and has Hermes fix it until every check passes.
+
+/bench approve <id>
+Approve a saved draft and build it.
+
+/bench status
+Is the compiler set up? Latest results.
+
+/bench setup
+Install the pinned Arduino compiler (once, about 150 MB)."""
 
 
 # ---------------------------------------------------------------- shared state
