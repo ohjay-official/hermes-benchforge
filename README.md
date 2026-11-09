@@ -6,11 +6,25 @@
 
 <p align="center"><img src="docs/board.gif" width="380" alt="A greenhouse fan controller running on BenchForge's simulated Arduino Uno: the temperature rises, the fan relay switches on, each check turns green"></p>
 
-Ask Hermes for Arduino code and you get something that compiles and looks right. Then it meets a real board. The relay buzzes because the temperature reading jitters. The status LED goes haywire after 49 days because the timer wrapped. One press of the button counts as five. And when the sensor wire works loose, the greenhouse fan switches off and the plants cook. You find these bugs after the wiring is done, with mains power, a motor or a heater on the other end.
+**The problem.** People now ask AI to write the code for the small computer inside their gadgets: a greenhouse fan, a parking sensor, an egg incubator. The code compiles and looks right. Then it meets a real board. Cut one sensor wire and the fan relay clicks 40 times a second instead of failing safe, and the plants cook. After 49 days the board's clock wraps and the status light goes haywire. One button press counts as five. You find these bugs after the wiring is done, with mains power, a motor or a heater on the other end.
 
-BenchForge finds them first. Tell Hermes what the board should do. BenchForge writes the checks, and you approve them in plain English before any code exists. Hermes writes the sketch, and the real Arduino compiler builds it. The firmware then runs instruction by instruction on a simulated ATmega328P (the chip on an Arduino Uno), with simulated sensors, buttons, relays, servos and buzzers wired to its pins. After that come the crash tests. Every failure goes back to Hermes, one at a time, until everything is green. You get the sketch, the firmware and a proof receipt anyone can re-run. And the agent can't flash a real board with anything that hasn't passed.
+**What BenchForge does.** It puts that code through a driving test before it gets the keys:
 
-**[▶ Try it in your browser, nothing to install](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan-draft)** · [How to test](#how-to-test) · [What you see](#what-you-see) · [How it works](#how-it-works) · [Why it's a plugin, not a prompt](#why-its-a-plugin-not-a-prompt) · [The checks](#the-checks) · [What works today](#what-works-today) · [What it touches](#what-it-touches)
+1. **You approve the checks first,** in plain English, before any code exists ("temp reads 32 °C → fan turns on within 1 s").
+2. **Hermes writes the sketch, the real Arduino compiler builds it,** and the firmware runs instruction by instruction on a simulated ATmega328P, the chip on an Arduino Uno, with simulated sensors, buttons, relays, servos and buzzers on its pins.
+3. **Then come the crash tests:** a noisy sensor, a wire cut mid-run, the clock wrapping, a bouncy button. Every failure goes back to Hermes, one at a time, until everything passes.
+4. **The agent can't flash a real board with anything that hasn't passed.** A Hermes hook checks every upload command against a proof receipt and blocks the rest.
+
+You get the sketch, the firmware, an animation of the run, a link that replays it in any browser, and a receipt anyone can re-run.
+
+**[▶ Try it in your browser, nothing to install](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan-draft)** · [How to test](#how-to-test) · [Seen working](#seen-working) · [Where to check each claim](#where-to-check-each-claim) · [How it works](#how-it-works) · [Why it's a plugin, not a prompt](#why-its-a-plugin-not-a-prompt) · [Questions](#questions-people-ask) · [What works today](#what-works-today)
+
+| | |
+|---|---|
+| **No hardware needed** | the chip, the sensors and the faults are all simulated |
+| **5 golden benches, 10 sketches** | every first draft fails exactly the checks it should; every fix passes; CI on Linux, macOS and Windows |
+| **A real agent, stopped** | in a real Hermes gateway the agent tried to flash firmware nobody had approved, and the flash gate blocked it ([run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149)) |
+| **Installs the way a judge installs** | `hermes plugins install` on clean Linux and macOS machines, then `/bench demo` to 22/22 ([run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42604622588)) |
 
 ## How To Test
 
@@ -51,6 +65,31 @@ python -m benchforge verify <receipt.json> my.ino                         # rebu
 ```
 
 Inside Hermes the same commands are `hermes bench check|run|verify`.
+
+## Seen Working
+
+A real run on Telegram, on a phone, 9 November 2026: Hermes on gemini-3-flash-preview, BenchForge from this repo, nothing staged.
+
+[![A real BenchForge run on Telegram: the progress message with four fixes ending at 22/22, the board animation, and the agent's upload blocked by the flash gate](docs/telegram-run.jpg)](docs/telegram-run.jpg)
+
+- **Left:** `/bench demo` after approval. The first sketch fails 3 of 23 checks. The model's first fix solves the clock bug but not the cut wire; its second makes things worse (16/22); its fourth gets every check green. Each 🔧 line is the model's own note on what it changed. BenchForge doesn't take its word for it: every round is compiled and re-run.
+- **Middle:** the animation that arrives with the result, plus a zip with the sketch, firmware, receipt and an offline live board.
+- **Right:** asked to upload a sketch BenchForge never tested, the agent ran `arduino-cli upload`, and the flash gate stopped it.
+
+It doesn't always get there. One run that afternoon stopped at 21/23, the cut-wire test still failing, and reported itself not green; the gate stayed shut for that firmware. That's the point: nothing ships on the model's say-so.
+
+## Where To Check Each Claim
+
+| Claim | Check it here |
+|---|---|
+| The firmware really runs on a simulated ATmega328P | [`engine/bench.js`](engine/bench.js) (the parts and faults), on [avr8js](engine/vendor/avr8js); open the [live board](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan-draft) and cut the wire yourself |
+| Every crash test catches a real bug | [`examples/*/expect.json`](examples) and [`tools/golden.py`](tools/golden.py), run by [CI](.github/workflows/ci.yml) on three systems |
+| The same firmware always gets the same result | `python -m benchforge verify <receipt> <sketch>` rebuilds and re-runs; CI requires an exact match |
+| The model can't move the goalposts | checks are locked by hash at approval ([`benchforge/forge.py`](benchforge/forge.py)); the fixer is told to keep every threshold ([`benchforge/prompts.py`](benchforge/prompts.py)); a receipt records the bench hash |
+| The agent can't flash untested firmware | [`benchforge/gate.py`](benchforge/gate.py), [`FlashGate` tests](tests/test_core.py), and the [real-gateway run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149) |
+| It installs and works the way a judge would use it | [judge path workflow](.github/workflows/judge-path.yml) and its [run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42604622588) |
+| It passes the catalog's own admission checks | `hermes plugins validate` (security scan: safe) and `doctor`, in the [CI](.github/workflows/ci.yml) `hermes plugin checks` job |
+| A sketch can't read your files while compiling | [docs/SECURITY.md](docs/SECURITY.md#1-a-sketch-reading-files-at-compile-time) and [`tests/test_core.py`](tests/test_core.py) `SketchScanner` |
 
 ## What You See
 
@@ -167,6 +206,33 @@ A prompt can say "I tested it". BenchForge actually runs the code:
 - **Separation of duties.** The checks are written and approved before the code exists. The coder never sees the crash tests, and the fixer can't change the checks.
 - **Proof, not trust.** `hermes bench verify` rebuilds the firmware from the sketch, re-runs the bench and compares every result with the receipt. CI does exactly this on every push.
 
+### Compared With The Usual Ways
+
+| | Ask a model for code | Test on a real board | BenchForge |
+|---|---|---|---|
+| Finds the bug before the wiring is done | no | no | yes |
+| Cut wires, 49-day clock wrap, button bounce | only if you think of them | only if you wait or break something | every run, automatically |
+| Checks a person agreed to | no | in your head | yes, approved in plain English, locked by hash |
+| Fixes itself | you paste errors back | you debug | Hermes fixes until green, up to 5 rounds |
+| Stops the agent flashing untested code | no | no | yes, the flash gate |
+| Proof someone else can re-run | no | no | a receipt, `hermes bench verify` |
+
+## Questions People Ask
+
+**Do I need an Arduino?** No. Everything runs on the simulated chip. You only need a board when you flash the result.
+
+**Is a simulator good enough?** For the logic, yes; that's where these bugs live. The chip is emulated instruction by instruction, with its real timers, interrupts and ADC, running the exact firmware the Arduino compiler made. The parts are idealised (an LM35 is a perfect 10 mV/°C), so BenchForge proves the firmware handles the cases on the bench, not that your wiring is right.
+
+**Can the model cheat by weakening the checks?** No. The checks are written and approved before any code exists, and locked by their SHA-256 hash. The fixer only ever changes the sketch. The receipt records the hash of the bench it passed, and the flash gate only opens for firmware that passed a bench a person approved.
+
+**What if the model never gets it right?** After five fixes it stops and says so, showing what still fails. The gate stays shut for that firmware.
+
+**Does my code go anywhere?** Only to your own model provider, through Hermes, for `/bench`. Compiling and simulating happen on your machine. Live links carry the firmware after the `#`, which browsers never send to a server.
+
+**How long does it take?** Compiling and running every test takes about 5 seconds a round. The rest is the model: the demo went green in 19 seconds over two fixes on gemini-3.5-flash; the four fixes in the Telegram run above took under two minutes.
+
+**Why only the Uno?** It's the most common Arduino, and its chip has a mature open emulator. ESP32 and I2C parts are the next step.
+
 ## The Checks
 
 A bench is JSON. This is the greenhouse fan from [`examples/greenhouse-fan/bench.json`](examples/greenhouse-fan/bench.json), shortened:
@@ -219,7 +285,7 @@ On every push, CI compiles all ten sketches with the real arduino-cli on Linux, 
 | `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests and inside a real Hermes (Telegram and the API server); `hermes plugins validate` (security scan: safe) and `doctor` pass in CI |
 | Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, the link decoder is tested against Python's zlib in CI, and the page was checked in headless Chromium at phone size while building it |
 | The whole loop with a real model | Works: on gemini-3.5-flash, three plain-English requests (greenhouse fan, button lamp, parking sensor) all reached green, and `/bench demo` went from 20/23 to 22/22 in two fixes and 19 seconds ([`tools/llm_smoke.py`](tools/llm_smoke.py), run on demand in CI) |
-| Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 and delivered the animation and the bundle ([`demo-bot.yml`](.github/workflows/demo-bot.yml)) |
+| Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 in four fixes and delivered the animation, the bundle and the live link; the agent's untested upload was blocked by the flash gate ([Seen working](#seen-working), [`demo-bot.yml`](.github/workflows/demo-bot.yml)). Not every run reaches green: one stopped at 21/23 and said so |
 | The agent on its own, in a real Hermes gateway | Works: asked for a button-toggle lamp and told to test it with BenchForge, the agent (gemini-3.5-flash-lite) found `bench_guide` and `bench_test` through Hermes's tool search, wrote its own bench, tested the sketch until it passed and gave the receipt id. Asked to flash it, it ran `arduino-cli upload` itself and the flash gate stopped it: nobody had approved the checks. It then told the person to send `/bench approve` ([`tools/agent_e2e.py`](tools/agent_e2e.py), [run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149)) |
 | Windows | The bench works in CI (compile, simulate, golden benches, receipt verify); not yet run inside Hermes on Windows |
 | Other boards (ESP32, Mega, Nano Every), I2C/SPI parts, displays | Not yet: the Uno and the parts above only |
