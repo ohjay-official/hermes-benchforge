@@ -153,7 +153,8 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     rounds = ws.forge(bench, sketch, fixer, progress=on_round)
     final = rounds[-1].outcome
     if progress.lines and progress.lines[-1] == fixing:
-        progress.set_last("   (no further fix)")
+        stop = rounds[-1].change if rounds[-1].n > 0 and rounds[-1].outcome is rounds[-2].outcome else ""
+        progress.set_last(f"   ⚠ {stop}" if stop else "   (no further fix)")
     lines = []
     if not progress.shown:
         lines += rounds_text + [""]

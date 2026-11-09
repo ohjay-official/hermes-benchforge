@@ -125,7 +125,11 @@ class Workspace:
             if out.passed:
                 break
             brief = out.brief()
-            new, change = fixer(out.sketch, brief)
+            try:
+                new, change = fixer(out.sketch, brief)
+            except Exception as exc:                      # a model outage ends the loop, not the report
+                rounds.append(Round(n, out, f"the model call failed ({type(exc).__name__}: {str(exc)[:160]})"))
+                break
             if not new or not new.strip():
                 break
             h = hashlib.sha256(new.encode()).hexdigest()

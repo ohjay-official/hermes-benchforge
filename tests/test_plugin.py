@@ -167,6 +167,20 @@ class EndToEnd(unittest.TestCase):
                   args={"command": f"arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno --input-file {hex_path}"})
         self.assertIsNone(ok)
 
+    def test_model_outage_mid_fix_still_reports(self):
+        ctx = FakeCtx()
+        plugin.register(ctx)
+
+        def down(**kw):
+            if kw["purpose"] == "benchforge.fix":
+                raise TimeoutError("quota exhausted")
+            return FakeLlm.complete_structured(ctx.llm, **kw)
+        ctx.llm.complete_structured = down
+        reply = ctx.commands["bench"]("demo", source=None)
+        self.assertIn("Not green", reply)
+        self.assertIn("Receipt", reply)
+        self.assertTrue(any("model call failed" in p for p in ctx.posts), ctx.posts)
+
     def test_cancel_builds_nothing(self):
         ctx = FakeCtx(answer="cancel")
         plugin.register(ctx)
