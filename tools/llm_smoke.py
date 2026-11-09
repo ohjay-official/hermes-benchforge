@@ -114,7 +114,7 @@ def main() -> int:
         return 2
     if len(sys.argv) > 1 and sys.argv[1] == "probe":
         return probe(key)
-    llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-3.8-flash")
+    llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-3.5-flash")
     try:
         req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
                                      headers={"x-goog-api-key": key})

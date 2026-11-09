@@ -12,7 +12,7 @@ on:
         default: "3"
       model:
         description: "Gemini model"
-        default: "gemini-3.8-flash"
+        default: "gemini-3.5-flash"
 
 permissions:
   contents: read
