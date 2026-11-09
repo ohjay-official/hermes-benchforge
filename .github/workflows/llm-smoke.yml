@@ -31,4 +31,4 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MODEL: ${{ inputs.model }}
-        run: python tools/llm_smoke.py "$MODEL"
+        run: python -u tools/llm_smoke.py "$MODEL"

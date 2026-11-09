@@ -65,6 +65,7 @@ jobs:
           hermes config set model.provider gemini
           hermes config set model.default "$MODEL"
           hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
+          hermes config set agent.reasoning_effort low
 
       - name: Install BenchForge from this commit
         run: |

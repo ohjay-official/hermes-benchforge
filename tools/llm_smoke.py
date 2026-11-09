@@ -55,17 +55,25 @@ class Gemini:
             "systemInstruction": {"parts": [{"text": instructions}]},
             "contents": [{"role": "user", "parts": [{"text": "".join(b["text"] for b in input)}]}],
             "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": max_tokens or 8000,
-                                 "temperature": 0.2},
+                                 "temperature": 0.2, "thinkingConfig": {"thinkingLevel": "low"}},
         }
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        t0 = time.time()
         for attempt in range(5):
             req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
                                          headers={"Content-Type": "application/json", "x-goog-api-key": self.key})
             try:
-                with urllib.request.urlopen(req, timeout=timeout or 240) as r:
+                with urllib.request.urlopen(req, timeout=max(timeout or 0, 420)) as r:
                     data = json.loads(r.read())
-                text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
+                text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"]
+                               if not p.get("thought"))
+                print(f"   ({purpose}: {time.time() - t0:.0f} s)", flush=True)
                 return Result(text)
+            except TimeoutError:
+                if attempt < 2:
+                    print(f"   ({purpose}: timed out, retrying)", flush=True)
+                    continue
+                raise
             except urllib.error.HTTPError as exc:
                 if exc.code in (429, 500, 503) and attempt < 4:
                     time.sleep(15 * (attempt + 1))
@@ -80,6 +88,15 @@ def main() -> int:
         print("GEMINI_API_KEY is not set")
         return 2
     llm = Gemini(key, sys.argv[1] if len(sys.argv) > 1 else "gemini-3.8-flash")
+    try:
+        req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+                                     headers={"x-goog-api-key": key})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            names = [m["name"].split("/")[-1] for m in json.loads(r.read()).get("models", [])
+                     if "generateContent" in m.get("supportedGenerationMethods", [])]
+        print("models this key can use:", ", ".join(n for n in names if "flash" in n or "pro" in n))
+    except Exception as exc:                      # informational only
+        print("could not list models:", exc)
     ws = Workspace(Path(os.environ.get("BENCHFORGE_HOME") or tempfile.mkdtemp()))
     ok, missing = ws.ready()
     if not ok:
