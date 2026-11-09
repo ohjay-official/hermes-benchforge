@@ -66,6 +66,20 @@ jobs:
           hermes config set model.default "$MODEL"
           hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
           hermes config set agent.reasoning_effort low
+          # Gemini's free tier allows about 20 requests per model per day: when one runs out, the agent
+          # moves to the next model, each with its own allowance.
+          cfg="$HOME/.hermes/config.yaml"
+          grep -q '^fallback_providers: *\[\] *$' "$cfg" && sed -i '/^fallback_providers: *\[\] *$/d' "$cfg"
+          cat >> "$cfg" <<'YAML'
+          fallback_providers:
+            - provider: gemini
+              model: gemini-3.5-flash
+            - provider: gemini
+              model: gemini-3.5-flash-lite
+            - provider: gemini
+              model: gemini-flash-lite-latest
+          YAML
+          hermes config get fallback_providers || true
 
       - name: Install BenchForge from this commit
         run: |
