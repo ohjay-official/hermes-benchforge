@@ -43,8 +43,28 @@
     var ds = new DecompressionStream('deflate-raw');
     return new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
   }
+  async function fromShort(s) {
+    // A short link: zlib against dicts/<its id>.txt (tools/make_live_dict.py), the JSON then the flash image
+    var z = b64urlBytes(s);
+    if (z.length < 6 || !(z[1] & 32)) throw new Error('This link is damaged.');
+    var id = Array.prototype.map.call(z.subarray(2, 6), function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
+    var r = await fetch('dicts/' + id + '.txt');
+    if (!r.ok) throw new Error('This link needs a newer live board than this one.');
+    var text = await r.text();
+    var dict = b64urlBytes(text.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l && l.charAt(0) !== '#'; }).join(''));
+    var raw = window.BenchForgeInflate.inflateZlib(z, dict);
+    var cut = raw.indexOf(0);
+    if (cut < 0) throw new Error('This link is damaged.');
+    var p = JSON.parse(new TextDecoder().decode(raw.subarray(0, cut)));
+    var img = raw.subarray(cut + 1), bin = '';
+    for (var i = 0; i < img.length; i += 8192) bin += String.fromCharCode.apply(null, img.subarray(i, i + 8192));
+    p.bin = btoa(bin);
+    return p;
+  }
   async function fromHash() {
     var h = location.hash.slice(1);
+    var z = /(?:^|&)z=([^&]+)/.exec(h);
+    if (z) return fromShort(z[1]);
     var f = /(?:^|&)f=([^&]+)/.exec(h);
     if (f) return JSON.parse(new TextDecoder().decode(await inflate(b64urlBytes(f[1]))));
     var d = /(?:^|&)demo=([a-z0-9-]+)/.exec(h);
@@ -98,8 +118,8 @@
     el('rect', { x: b.x - 6, y: b.y + 112, width: 22, height: 30, fill: '#21262d', rx: 2 }, svg);
     el('rect', { x: b.x + 70, y: b.y + 72, width: 112, height: 34, fill: '#21262d', rx: 3 }, svg);
     el('text', { x: b.x + 126, y: b.y + 93, fill: '#7d8590', 'font-size': 11, 'text-anchor': 'middle' }, svg, 'ATmega328P');
-    el('text', { x: b.x + 18, y: b.y + 138, fill: '#fff', 'font-size': 22, 'font-weight': 700 }, svg, 'UNO');
-    el('text', { x: b.x + 20, y: b.y + 158, fill: '#105058', 'font-size': 11 }, svg, '16 MHz');
+    el('text', { x: b.x + 26, y: b.y + 138, fill: '#fff', 'font-size': 22, 'font-weight': 700 }, svg, 'UNO');
+    el('text', { x: b.x + 26, y: b.y + 158, fill: '#105058', 'font-size': 11 }, svg, '16 MHz');
     var pins = [];
     for (var n = 2; n <= 13; n++) pins.push('D' + n);
     for (var a = 0; a <= 5; a++) pins.push('A' + a);

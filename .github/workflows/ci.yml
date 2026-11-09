@@ -52,6 +52,16 @@ jobs:
           python -m benchforge run examples/greenhouse-fan/bench.json examples/greenhouse-fan/fixed.ino --json > receipt.json
           python -m benchforge verify receipt.json examples/greenhouse-fan/fixed.ino
 
+      - name: The live-link dictionary is exactly the golden benches' results and firmware
+        if: runner.os == 'Linux'
+        run: |
+          if ! python tools/make_live_dict.py --check; then
+            python tools/make_live_dict.py
+            f="web/dicts/$(cat web/dicts/current.txt).txt"
+            echo "----- fresh $f -----"; cat "$f"; echo "----- end -----"
+            exit 1
+          fi
+
   hermes:
     name: hermes plugin checks
     runs-on: ubuntu-latest

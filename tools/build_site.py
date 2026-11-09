@@ -23,8 +23,10 @@ from benchforge.spec import load  # noqa: E402
 
 def main(out: Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
-    for f in ("index.html", "style.css", "app.js"):
+    for f in ("index.html", "style.css", "app.js", "inflate.js"):
         shutil.copy(ROOT / "web" / f, out / f)
+    if (ROOT / "web" / "dicts").is_dir():                       # every link dictionary ever used
+        shutil.copytree(ROOT / "web" / "dicts", out / "dicts", dirs_exist_ok=True)
     (out / "engine.js").write_text(live.engine_bundle(), encoding="utf-8")
     ws = Workspace(Path(os.environ.get("BENCHFORGE_HOME") or tempfile.mkdtemp(prefix="benchforge-site-")))
     ok, missing = ws.ready()

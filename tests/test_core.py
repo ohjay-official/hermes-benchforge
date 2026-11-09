@@ -255,6 +255,59 @@ class Animation(unittest.TestCase):
         self.assertEqual(data.count(b"\x21\xf9\x04"), 3)        # one graphic control block per frame
 
 
+class LiveLinks(unittest.TestCase):
+    """Short live links: Python packs them, the page unpacks them with web/inflate.js."""
+
+    PAYLOAD = {"v": 1, "name": "x", "goal": "a lamp ✓ 30 °C", "parts": [], "steps": [], "verdict": "pass",
+               "score": "1/1", "bin": __import__("base64").b64encode(bytes(range(256)) * 9).decode()}
+
+    def setUp(self):
+        from benchforge import live
+        if live.live_dict() is None:
+            self.skipTest("no live-link dictionary in web/dicts yet")
+
+    def test_short_link_round_trips_and_is_short(self):
+        from benchforge import live
+        zdict = live.live_dict()
+        self.assertLessEqual(len(zdict), 32768)
+        url = live.link(self.PAYLOAD)
+        self.assertIn("#z=", url)
+        self.assertEqual(live.unpack_short(url.split("#z=")[1], zdict), self.PAYLOAD)
+        self.assertLess(len(url), len(live.LIVE_URL + "#f=" + live.pack(self.PAYLOAD)))
+
+    def test_the_page_decodes_what_python_packs(self):
+        import base64
+        import shutil
+        import subprocess
+        import zlib
+        from benchforge import live
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("needs Node.js")
+        zdict = live.live_dict()
+        datas = [b"", b"hello" * 999, bytes(range(256)) * 300, zdict[:5000] + b"new" + zdict[9000:20000]]
+        cases = []
+        for d in datas:
+            c = zlib.compressobj(9, zlib.DEFLATED, 15, 9, zlib.Z_DEFAULT_STRATEGY, zdict)
+            cases.append(base64.b64encode(c.compress(d) + c.flush()).decode())
+        c = zlib.compressobj(9, zlib.DEFLATED, 15)                   # no dictionary at all
+        cases.append(base64.b64encode(c.compress(b"plain") + c.flush()).decode())
+        datas.append(b"plain")
+        script = (
+            "const {inflateZlib} = require(process.argv[1]); const fs = require('fs');"
+            "const c = JSON.parse(fs.readFileSync(0, 'utf8')); const d = Buffer.from(c.dict, 'base64');"
+            "const out = c.cases.map(z => Buffer.from(inflateZlib(new Uint8Array(Buffer.from(z, 'base64')), new Uint8Array(d))).toString('base64'));"
+            "let bad = 0; const z0 = Buffer.from(c.cases[1], 'base64'); z0[z0.length - 2] ^= 4;"
+            "try { inflateZlib(new Uint8Array(z0), new Uint8Array(d)); } catch (e) { bad = 1; }"
+            "console.log(JSON.stringify({out, bad}));")
+        res = subprocess.run([node, "-e", script, str(ROOT / "web" / "inflate.js")], capture_output=True, text=True,
+                             input=json.dumps({"dict": base64.b64encode(zdict).decode(), "cases": cases}), timeout=60)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        got = json.loads(res.stdout)
+        self.assertEqual([base64.b64decode(o) for o in got["out"]], datas)
+        self.assertEqual(got["bad"], 1, "a damaged link must be refused")
+
+
 class FlashGate(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())

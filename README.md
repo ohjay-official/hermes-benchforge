@@ -106,11 +106,11 @@ The 🔧 line is the model's own summary of its change. The reply then shows:
 - the run as an animated GIF of the board (above)
 - a zip with the sketch, the firmware (`.hex`), the receipt and `live.html`, which opens the live board offline with this firmware in it
 
-Where the chat allows long links, the reply also carries a link straight to the live board.
+The reply also carries a link straight to the live board with this firmware in it. A firmware is 3 to 5 KB, so links are compressed against a dictionary of the golden benches' own results and firmware ([`web/dicts/`](web/dicts), built and checked in CI by [`tools/make_live_dict.py`](tools/make_live_dict.py)); most of any Uno firmware is the same Arduino core code, so a link comes out around 1 to 2.5 KB and fits in a Telegram message. Discord's 2,000 characters are too few, so there the reply points to `live.html` in the zip.
 
 [![The live board on a phone: the fixed firmware keeps the fan on when the sensor wire is cut; the first draft makes the relay click 30 times a second](docs/live-board.png)](https://ohjay-official.github.io/hermes-benchforge/)
 
-The live board runs the same engine in the browser, with the same simulated parts. **Play the bench** replays the exact test. **Try it yourself** gives you a slider for every sensor, a button you can hold, and a **cut the wire** switch for each sensor. The firmware travels in the link after `#`, which the browser never sends to the server. A bundle zip opened on the page is read locally and never uploaded.
+The live board runs the same engine in the browser, with the same simulated parts. **Play the bench** replays the exact test. **Try it yourself** gives you a slider for every sensor, a button you can hold, and a **cut the wire** switch for each sensor. The firmware travels in the link after `#`, which the browser never sends to the server; the page only fetches its own files (the engine and the link dictionary). A bundle zip opened on the page is read locally and never uploaded.
 
 ## How It Works
 
@@ -219,7 +219,7 @@ On every push, CI compiles all ten sketches with the real arduino-cli on Linux a
 | `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests and inside a real Hermes (Telegram and the API server); `hermes plugins validate` (security scan: safe) and `doctor` pass in CI |
 | Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, and the page is tested in Chromium at phone size |
 | The whole loop with a real model | Works: on gemini-3.5-flash, three plain-English requests (greenhouse fan, button lamp, parking sensor) all reached green, and `/bench demo` went from 20/23 to 22/22 in two fixes and 19 seconds ([`tools/llm_smoke.py`](tools/llm_smoke.py), run on demand in CI) |
-| Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 and delivered the animation, the bundle and the live link ([`demo-bot.yml`](.github/workflows/demo-bot.yml)) |
+| Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 and delivered the animation and the bundle ([`demo-bot.yml`](.github/workflows/demo-bot.yml)) |
 | The agent on its own, in a real Hermes gateway | Works: asked for a button-toggle lamp and told to test it with BenchForge, the agent (gemini-3.5-flash-lite) found `bench_guide` and `bench_test` through Hermes's tool search, wrote its own bench, tested the sketch until it passed and gave the receipt id. Asked to flash it, it ran `arduino-cli upload` itself and the flash gate stopped it: nobody had approved the checks. It then told the person to send `/bench approve` ([`tools/agent_e2e.py`](tools/agent_e2e.py), [run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149)) |
 | Windows | The bench works in CI (compile, simulate, golden benches, receipt verify); not yet run inside Hermes on Windows |
 | Other boards (ESP32, Mega, Nano Every), I2C/SPI parts, displays | Not yet: the Uno and the parts above only |

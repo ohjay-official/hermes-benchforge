@@ -9,6 +9,7 @@ for the download bundle: it opens offline, by double-click.
 from __future__ import annotations
 
 import base64
+import functools
 import json
 import zlib
 from pathlib import Path
@@ -73,12 +74,58 @@ def _hex_to_bin(hex_text: str) -> bytes:
 
 
 def pack(p: dict) -> str:
+    """The plain form (``#f=``): the whole payload as JSON, deflated."""
     c = zlib.compressobj(9, zlib.DEFLATED, -15)
     raw = c.compress(json.dumps(p, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) + c.flush()
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
+DICTS = WEB / "dicts"
+
+
+def read_dict(path: Path) -> bytes:
+    lines = (line.strip() for line in path.read_text(encoding="ascii").splitlines())
+    return base64.b64decode("".join(line for line in lines if line and not line.startswith("#")))
+
+
+@functools.lru_cache(maxsize=1)
+def live_dict() -> bytes | None:
+    """The preset dictionary new short links are compressed against: the results and flash images of
+    the golden benches (tools/make_live_dict.py builds it). Most of any Uno firmware is the same Arduino
+    core code, so a new firmware compresses to a fraction of its size against it. Each dictionary is
+    kept in web/dicts/ under its zlib id, so the page can still open links made with an older one."""
+    try:
+        current = (DICTS / "current.txt").read_text(encoding="ascii").strip()
+        return read_dict(DICTS / f"{current}.txt") or None
+    except (OSError, ValueError):
+        return None
+
+
+def pack_short(p: dict, zdict: bytes) -> str:
+    """The short form (``#z=``): the payload's JSON without the firmware, a zero byte, then the raw flash
+    image, zlib-compressed against the dictionary. zlib's header names the dictionary and its trailer
+    checks the data, so the page refuses a damaged link or one made against another dictionary."""
+    q = dict(p)
+    image = base64.b64decode(q.pop("bin"))
+    raw = json.dumps(q, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\0" + image
+    c = zlib.compressobj(9, zlib.DEFLATED, 15, 9, zlib.Z_DEFAULT_STRATEGY, zdict)
+    return base64.urlsafe_b64encode(c.compress(raw) + c.flush()).decode("ascii").rstrip("=")
+
+
+def unpack_short(s: str, zdict: bytes) -> dict:
+    """The reverse of ``pack_short`` (the page does the same in web/inflate.js and web/app.js)."""
+    d = zlib.decompressobj(15, zdict)
+    raw = d.decompress(base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))) + d.flush()
+    head, _, image = raw.partition(b"\0")
+    p = json.loads(head.decode("utf-8"))
+    p["bin"] = base64.b64encode(image).decode("ascii")
+    return p
+
+
 def link(p: dict, base: str = LIVE_URL) -> str:
+    zdict = live_dict()
+    if zdict:
+        return f"{base}#z={pack_short(p, zdict)}"
     return f"{base}#f={pack(p)}"
 
 
@@ -126,9 +173,12 @@ def standalone_html(p: dict) -> str:
     data = json.dumps(p, separators=(",", ":")).replace("</", "<\\/")
     page = page.replace('<link rel="stylesheet" href="style.css">', f"<style>\n{css}\n</style>")
     page = page.replace('<script src="engine.js"></script>', f"<script>\n{engine_bundle()}\n</script>")
+    inflate = (WEB / "inflate.js").read_text(encoding="utf-8")
+    page = page.replace('<script src="inflate.js"></script>', f"<script>\n{inflate}\n</script>")
     page = page.replace('<script src="app.js"></script>',
                         f"<script>window.BENCHFORGE_PAYLOAD = {data};</script>\n<script>\n{app}\n</script>")
     return page
 
 
-__all__ = ["payload", "pack", "link", "engine_bundle", "standalone_html", "LIVE_URL"]
+__all__ = ["payload", "pack", "pack_short", "unpack_short", "live_dict", "link", "engine_bundle",
+           "standalone_html", "LIVE_URL"]
