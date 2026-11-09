@@ -199,6 +199,7 @@ def load(raw: Any) -> Bench:
             raise BenchError(f"bench is not valid JSON: {exc}") from None
     if not isinstance(raw, dict):
         raise BenchError("bench must be a JSON object")
+    raw = normalize(raw)
     _keys(raw, "bench", {"bench", "name", "board", "goal", "parts", "steps", "always", "unplugged"},
           {"name", "parts", "steps"})
     if raw.get("bench", BENCH_VERSION) != BENCH_VERSION:
@@ -250,6 +251,99 @@ def load(raw: Any) -> Bench:
     for c in checks:
         c.text = describe_check(bench, c)
     return bench
+
+
+_NOTE_KEYS = {"description", "say", "comment", "comments", "note", "notes", "label", "why", "text"}
+_ON = {"on", "high", "true", "1", "active"}
+_OFF = {"off", "low", "false", "0", "inactive"}
+
+
+def _plain_state(v):
+    """'HIGH', True, 1 -> 'on'; 'LOW', False, 0 -> 'off'. Anything else is left for validation."""
+    if isinstance(v, bool):
+        return "on" if v else "off"
+    if isinstance(v, (int, float)) and v in (0, 1):
+        return "on" if v == 1 else "off"
+    if isinstance(v, str) and v.strip().lower() in _ON | _OFF:
+        return "on" if v.strip().lower() in _ON else "off"
+    return v
+
+
+def normalize(raw: dict) -> dict:
+    """Forgive the near-misses models make (a "pins" object, "HIGH" for on, "within" for within_ms, notes)
+    so a bench is rejected only for what it means, not how it is spelled. Returns a new dict; the bench's
+    hash is taken over this normalised form."""
+    import copy
+
+    r = copy.deepcopy(raw)
+    for k in _NOTE_KEYS & set(r):
+        if k != "description":
+            r.pop(k)
+    if r.get("bench") in ("1", 1.0):
+        r["bench"] = 1
+    if isinstance(r.get("board"), str) and "uno" in r["board"].lower():
+        r["board"] = "uno"
+    if isinstance(r.get("name"), str):
+        r["name"] = re.sub(r"[^a-z0-9-]+", "-", r["name"].strip().lower()).strip("-")[:48] or r["name"]
+    if "description" in r and "goal" not in r:
+        r["goal"] = r.pop("description")
+    r.pop("description", None)
+    parts = r.get("parts")
+    types = {}
+    if isinstance(parts, list):
+        for p in parts:
+            if not isinstance(p, dict):
+                continue
+            for k in _NOTE_KEYS & set(p):
+                p.pop(k)
+            if isinstance(p.get("pins"), dict):
+                pins = p.pop("pins")
+                roles = PART_TYPES.get(p.get("type"), PartType("output", ("pin",))).pins
+                for role in roles:
+                    if role in pins:
+                        p.setdefault(role, pins[role])
+                if roles == ("pin",) and "pin" not in p and len(pins) == 1:
+                    p["pin"] = next(iter(pins.values()))
+            if "initial" in p and "start" not in p:
+                v = p.pop("initial")
+                p["start"] = next(iter(v.values())) if isinstance(v, dict) and len(v) == 1 else v
+            if isinstance(p.get("start"), dict) and len(p["start"]) == 1:
+                p["start"] = next(iter(p["start"].values()))
+            if isinstance(p.get("id"), str):
+                types[p["id"]] = p.get("type")
+    renames = {"within": "within_ms", "timeout_ms": "within_ms", "deadline_ms": "within_ms",
+               "for": "for_ms", "duration_ms": "for_ms", "hold": "hold_ms", "tolerance_percent": "tolerance_pct"}
+    for group in ("steps", "always"):
+        for c in r.get(group) or []:
+            if not isinstance(c, dict):
+                continue
+            for k in _NOTE_KEYS & set(c):
+                c.pop(k)
+            if isinstance(c.get("set"), dict):
+                c["set"] = {pid: (next(iter(v.values())) if isinstance(v, dict) and len(v) == 1 else v)
+                            for pid, v in c["set"].items()}
+                if not c["set"]:
+                    c.pop("set")
+            e = c.get("expect")
+            if isinstance(e, dict):
+                for old, new in renames.items():
+                    if old in e and new not in e:
+                        e[new] = e.pop(old)
+                ptype = types.get(e.get("part"))
+                for kind in ("becomes", "stays"):
+                    if kind in e and ptype in ONOFF_TYPES:
+                        e[kind] = _plain_state(e[kind])
+                    if kind in e and ptype == "buzzer" and e[kind] in ("off", "quiet", "none", False):
+                        e[kind] = "silent"
+    if isinstance(r.get("unplugged"), dict):
+        for sid, states in r["unplugged"].items():
+            if isinstance(states, dict):
+                for oid, st in list(states.items()):
+                    if types.get(oid) in ONOFF_TYPES:
+                        states[oid] = _plain_state(st)
+                    elif types.get(oid) == "buzzer" and st in ("off", "quiet", False):
+                        states[oid] = "silent"
+    return r
 
 
 def _load_parts(raw_parts) -> dict:

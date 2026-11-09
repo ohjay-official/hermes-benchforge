@@ -22,6 +22,8 @@ from .spec import Bench, describe, wiring
 from .toolchain import Toolchain, ToolchainError, node_version
 
 MAX_FIX_ROUNDS = 5
+KEEP_RESULTS = 200          # newest receipts (with their firmware and sketch) kept on disk
+DRAFT_DAYS = 7              # unapproved drafts are deleted after a week
 
 
 @dataclass
@@ -104,6 +106,7 @@ class Workspace:
         out.receipt = receipt.make(bench, b, out.report, node_version=nv)
         if save:
             out.receipt_path, out.hex_path = receipt.save(out.receipt, b.hex, self.receipts)
+            _prune(self.receipts, "*.receipt.json", keep=KEEP_RESULTS, companions=(".hex", ".ino"))
             gate.mark_passing(out.receipt, out.receipt_path, self.data_dir)
             sk = self.receipts / f"{bench.name}-{b.hex_sha256[:12]}.ino"
             sk.write_text(sketch, encoding="utf-8")
@@ -156,6 +159,7 @@ class Workspace:
         did = hashlib.sha256((bench.sha256 + request + sketch).encode()).hexdigest()[:6]
         d = self.data_dir / "drafts"
         d.mkdir(parents=True, exist_ok=True)
+        _prune(d, "*.json", keep=50, max_age_days=DRAFT_DAYS)
         (d / f"{did}.json").write_text(json.dumps({"id": did, "request": request, "bench": bench.raw,
                                                    "sketch": sketch, "by": by[:80], "at": _now()},
                                                   ensure_ascii=False, indent=1))
@@ -177,6 +181,7 @@ class Workspace:
         name = f"{out.bench.name}-{out.build.hex_sha256[:12]}"
         d = self.data_dir / "bundles"
         d.mkdir(parents=True, exist_ok=True)
+        _prune(d, "*.zip", keep=50)
         path = d / f"{name}.zip"
         how = (f"BenchForge {'PASSED' if out.passed else 'DID NOT PASS'}: {out.bench.name}\n"
                f"Receipt {out.receipt['id']} · firmware sha256 {out.build.hex_sha256}\n\n"
@@ -204,6 +209,27 @@ class Workspace:
         if out.compile_error:
             return ["the sketch no longer compiles: " + out.compile_error[:300]]
         return receipt.compare(rec, out.receipt)
+
+
+def _prune(folder: Path, pattern: str, *, keep: int, max_age_days: int | None = None,
+           companions: tuple = ()) -> None:
+    """Keep the newest ``keep`` files (and none older than ``max_age_days``); remove the rest."""
+    import time
+
+    try:
+        files = sorted(folder.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
+    except OSError:
+        return
+    cutoff = time.time() - max_age_days * 86400 if max_age_days else None
+    for i, f in enumerate(files):
+        try:
+            if i >= keep or (cutoff is not None and f.stat().st_mtime < cutoff):
+                stem = f.name.split(".")[0]
+                f.unlink()
+                for ext in companions:
+                    (folder / f"{stem}{ext}").unlink(missing_ok=True)
+        except OSError:
+            continue
 
 
 def _now() -> str:

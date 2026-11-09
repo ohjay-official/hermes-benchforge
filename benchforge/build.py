@@ -99,6 +99,10 @@ def _preprocess_view(src: str) -> str:
     return "".join(out)
 
 
+def _strip_strings(line: str) -> str:
+    return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', '""', line)
+
+
 def scan(src: str) -> list:
     """Problems that stop a sketch being compiled, as plain sentences (empty list: fine)."""
     problems = []
@@ -135,6 +139,9 @@ def scan(src: str) -> list:
             problems.append(f"line {lineno}: {hit.group(1)} is not allowed (BenchForge only builds plain C++)")
         if re.search(r"\.(incbin|include|import)\b", line):
             problems.append(f"line {lineno}: assembler file includes are not allowed")
+        if "##" in _strip_strings(line) or "%:%:" in _strip_strings(line):
+            problems.append(f"line {lineno}: token pasting (##) is not allowed (it can build words the "
+                            "scanner would refuse)")
     if not re.search(r"\bvoid\s+setup\s*\(", view) or not re.search(r"\bvoid\s+loop\s*\(", view):
         problems.append("an Arduino sketch needs both void setup() and void loop()")
     return problems

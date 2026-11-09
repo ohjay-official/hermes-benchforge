@@ -48,11 +48,22 @@ def _workspace():
 
 
 def _who(source: Any) -> str:
+    """Who approved, without storing a name: the platform and a short one-way hash of the user id, enough
+    to tell later whether the same person approved two benches."""
+    import hashlib
+
     if source is None:
-        return "local user"
-    name = getattr(source, "user_name", None) or getattr(source, "user_id", None) or "someone"
-    platform = getattr(getattr(source, "platform", None), "value", None) or ""
-    return f"{name} ({platform})" if platform else str(name)
+        return "local"
+    platform = getattr(getattr(source, "platform", None), "value", None) or "chat"
+    uid = str(getattr(source, "user_id", "") or "")
+    return f"{platform}:{hashlib.sha256(uid.encode()).hexdigest()[:10]}" if uid else str(platform)
+
+
+def _shown_path(path) -> str:
+    """A path for a chat message: the home folder becomes ~ so a group chat never sees the host's user name."""
+    text = str(path)
+    home = str(Path.home())
+    return "~" + text[len(home):] if home not in ("", "/") and text.startswith(home) else text
 
 
 class _Progress:
@@ -151,7 +162,7 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     lines.append(f"Receipt {final.receipt['id']} (rerun it with `hermes bench verify`)")
     if final.passed:
         lines.append("The flash gate now allows this exact firmware onto a real board:")
-        lines.append(f"arduino-cli upload -p <port> --fqbn arduino:avr:uno --input-file {final.hex_path}")
+        lines.append(f"arduino-cli upload -p <port> --fqbn arduino:avr:uno --input-file {_shown_path(final.hex_path)}")
     bundle = ws.bundle(final)
     if bundle:
         lines.append(f"MEDIA:{bundle}")

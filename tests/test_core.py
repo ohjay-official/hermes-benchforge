@@ -76,6 +76,18 @@ class BenchFormat(unittest.TestCase):
         with self.assertRaisesRegex(spec.BenchError, "under 60 s"):
             spec.load(raw)
 
+    def test_model_near_misses_are_forgiven(self):
+        b = spec.load({"bench": "1", "name": "My Fan!", "board": "Arduino Uno", "description": "a fan",
+                       "parts": [{"id": "fan", "type": "relay", "pins": {"pin": "D7"}, "note": "x"},
+                                 {"id": "temp", "type": "lm35", "pins": {"signal": "A0"}, "initial": {"celsius": 22}}],
+                       "steps": [{"id": "hot", "say": "hi", "set": {"temp": {"celsius": 33}},
+                                  "expect": {"part": "fan", "becomes": "HIGH", "within": 500}}],
+                       "unplugged": {"temp": {"fan": True}}})
+        self.assertEqual(b.name, "my-fan")
+        self.assertEqual(spec.describe(b), ["1. temp reads 33 °C → fan turns on within 500 ms",
+                                            "2. If temp is unplugged → fan on (fail safe)"])
+        self.assertEqual(b.sha256, spec.load(b.raw).sha256)      # the hash is over the normalised form
+
     def test_unknown_fields_are_refused(self):
         raw = copy.deepcopy(GREENHOUSE)
         raw["steps"][0]["expect"]["fudge"] = True
@@ -115,6 +127,10 @@ class SketchScanner(unittest.TestCase):
         self.assertRefused('asm(".incbin \\"/etc/passwd\\"");\n' + GOOD, "asm is not allowed")
         self.assertRefused('__asm__ volatile ("nop");\n' + GOOD, "__asm__ is not allowed")
         self.assertRefused('_Pragma("GCC poison x")\n' + GOOD, "_Pragma is not allowed")
+        # building the asm keyword from pieces, and hiding ".incbin" in joined or escaped strings
+        self.assertRefused('#define J(a,b) a##b\nJ(__as,m__)(".inc" "bin x");\n' + GOOD, "token pasting")
+        self.assertRefused('#define J(a,b) a%:%:b\n' + GOOD, "token pasting")
+        self.assertEqual(build.scan('const char *s = "a##b";\n' + GOOD), [])
 
     def test_needs_setup_and_loop(self):
         self.assertRefused("int x;\n", "setup() and void loop()")
