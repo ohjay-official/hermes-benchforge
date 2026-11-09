@@ -66,6 +66,8 @@ jobs:
           hermes config set model.default "$MODEL"
           hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
           hermes config set agent.reasoning_effort low
+          # Telegram's command menu shows 60 commands and Hermes's own fill it: put /bench first
+          hermes config set platforms.telegram.extra.command_menu.priority bench
           # Gemini's free tier allows about 20 requests per model per day: when one runs out, the agent
           # moves to the next model, each with its own allowance.
           cfg="$HOME/.hermes/config.yaml"

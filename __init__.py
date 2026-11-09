@@ -464,7 +464,7 @@ def register(ctx) -> None:
 
     ctx.register_command("bench", bench_command,
                          description="Prove Arduino firmware on a simulated Uno before it touches a real board",
-                         args_hint="<what the board should do> | demo | approve <id> | status | setup")
+                         args_hint="[demo | <what the board should do> | approve <id> | status | setup]")
     ctx.register_tool(name="bench_guide", toolset="benchforge", schema=schemas.BENCH_GUIDE, handler=_guide,
                       description="BenchForge bench format and parts", emoji="🧪")
     ctx.register_tool(name="bench_test", toolset="benchforge", schema=schemas.BENCH_TEST, handler=_test,
