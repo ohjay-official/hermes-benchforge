@@ -29,14 +29,14 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-ARDUINO_CLI_VERSION = "1.5.1"
+ARDUINO_CLI_VERSION = "1.4.1"
 ARDUINO_CLI_SHA256 = {
-    "Linux_64bit.tar.gz": "28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b",
-    "Linux_ARM64.tar.gz": "1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62",
-    "Linux_ARMv7.tar.gz": "890af36e9873606e4dfa743534846186621b9f3a339175ea3ec481adecf07143",
-    "macOS_64bit.tar.gz": "c982e940027996bea9901050e95fae99c59c1dcfee54beedecaf28141e7bf2e7",
-    "macOS_ARM64.tar.gz": "cb952e8c1621c95ef5f1d17831c945e3d0ec5973f89c557a7ec8feb9c4f7d4c9",
-    "Windows_64bit.zip": "fabe42e0eb04d00e776a66178299ff95a46c623dbc260f997e58fd514853dd40",
+    "Linux_64bit.tar.gz": "683cf2a6b8953e3d632e7e4512c36667839d2073349c4b6d312e4c67592359bd",
+    "Linux_ARM64.tar.gz": "93159a5e27af6dab03bd3b5a441c86092d83c0422a5c17d0afc2ac21aee83612",
+    "Linux_ARMv7.tar.gz": "71cf6cb5e7ba01dbd0809bcccaa0452f337f0976fe688e83e870bbc81717cee7",
+    "macOS_64bit.tar.gz": "3f2de15a37e580301eb8618fb6fd931ed0b7a8b044f0809a0ac6d20879400a7c",
+    "macOS_ARM64.tar.gz": "d9d19a3cc8e6e28d138c435e1055a0388c984827e93fccbd352fe5dac685a02b",
+    "Windows_64bit.zip": "44f506a29d134cb294898d5f729aea85e5498f5d81ff5fc63c549087c45a20a3",
 }
 AVR_CORE = "arduino:avr@1.8.6"
 LIBRARIES = ("Servo@1.2.2",)
@@ -174,7 +174,26 @@ class Toolchain:
         return state
 
 
-def _download(url: str) -> bytes:
+def _download(url: str, attempts: int = 4) -> bytes:
+    """Fetch a release asset, retrying the brief 5xx hiccups GitHub's download servers sometimes give."""
+    import time
+    import urllib.error
+
+    last = None
+    for i in range(attempts):
+        try:
+            return _download_once(url)
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500:
+                raise ToolchainError(f"download failed: HTTP {exc.code} for {url}") from None
+            last = f"HTTP {exc.code}"
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            last = str(getattr(exc, "reason", exc))
+        time.sleep(2 * (i + 1))
+    raise ToolchainError(f"download failed after {attempts} tries ({last}): {url}")
+
+
+def _download_once(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "benchforge-setup"})
     with urllib.request.urlopen(req, timeout=120) as resp:   # noqa: S310 (fixed https URL)
         if not resp.geturl().startswith("https://"):
