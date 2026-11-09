@@ -92,7 +92,9 @@ In a chat, `/bench` shows the same thing live, as one message that updates itsel
 ```text
 ✅ greenhouse-fan: checks approved and locked (bench e228f7e6043a).
 🔌 Compiling and putting the sketch on the bench…
-First sketch: ✗ 20/23 [Clock rollover…] the whole time, led blinks at 1 Hz: led blinked at 333.33 Hz
+First sketch: ✗ 20/23
+     ✗ Clock rollover: the whole time, led blinks at 1 Hz (±10 %)
+       saw: led blinked at 333.33 Hz, unevenly (periods from 3 ms to 1 s)
    🔧 Switched to millis() subtraction and added a sensor-fault check that turns the fan on.
 Fix 1: ✅ 22/22 checks pass
 ```

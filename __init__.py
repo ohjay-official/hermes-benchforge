@@ -116,15 +116,16 @@ def _round_line(r) -> str:
     head = "First sketch" if r.n == 0 else f"Fix {r.n}"
     if out.compile_error:
         first = out.compile_error.strip().splitlines()[0][:140] if out.compile_error.strip() else "compile error"
-        return f"{head}: ✗ didn't compile ({first})"
+        return f"{head}: ✗ didn't compile\n     {first}"
     good, total = out.report.counts()
     if out.passed:
         return f"{head}: ✅ {good}/{total} checks pass"
     run, res = out.report.first_failure
-    what = res.text if res else run.error
-    saw = f": {res.saw}" if res else ""
-    where = "" if run.name == "main" else f" [{run.title}]"
-    return f"{head}: ✗ {good}/{total}{where} {what}{saw}"
+    where = "" if run.name == "main" else f"{run.title.split(' (')[0]}: "
+    if res is None:
+        return f"{head}: ✗ {good}/{total}\n     {where}{run.error}"
+    saw = res.saw if len(res.saw) <= 120 else res.saw[:119] + "…"
+    return f"{head}: ✗ {good}/{total}\n     ✗ {where}{res.text}\n       saw: {saw}"
 
 
 LINK_LIMIT = {"telegram": 3000, "discord": 1500, "whatsapp": 3000, "signal": 1500, "sms": 0}
