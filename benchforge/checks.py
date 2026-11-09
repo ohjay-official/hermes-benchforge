@@ -196,7 +196,12 @@ def _check_serial(trace: Trace, c: Check, base: dict) -> Result:
     for t, text in lines:
         if w0 <= t < w1 and want in text:
             return Result(passed=True, saw=f'printed "{_clip(text)}" at {fmt_ms(t)}', at_ms=t, **base)
-    nearby = [f'"{_clip(text)}" at {fmt_ms(t)}' for t, text in lines if w0 - 500 <= t < w1 + 500][:3]
+    earlier = next((t for t, text in lines if t < w0 and want in text), None)
+    nearby = [f'"{_clip(text)}" at {fmt_ms(t)}' for t, text in lines if w0 <= t < w1][:3]
+    if earlier is not None and not any(want in text for t, text in lines if t >= w0):
+        saw = (f'"{want}" was printed at {fmt_ms(earlier)}, before this check started at {fmt_ms(w0)} '
+               "(make it an earlier step, or an always-check, if that is when it should appear)")
+        return Result(passed=False, saw=saw, at_ms=w0, **base)
     if not lines:
         saw = "nothing was printed on Serial (is Serial.begin() called, at the right baud?)"
     elif nearby:
