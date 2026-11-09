@@ -66,7 +66,10 @@ did not ask for, apart from fail-safe states.
 
 """ + BENCH_FORMAT + """
 
-Return JSON: {"bench": <the bench>}"""
+If the request needs something BenchForge cannot simulate (displays, Wi-Fi, I2C or SPI sensors, motors
+with drivers, other boards), build the bench from the parts it can and say what you left out in "notes".
+
+Return JSON: {"bench": <the bench>, "notes": "<one short sentence about anything left out, or empty>"}"""
 
 CODER = f"""You write Arduino sketches for the Arduino Uno (ATmega328P, 16 MHz). Write one complete .ino sketch
 that does what the person asked, wired exactly as listed, so that it passes every approved check.
@@ -83,7 +86,8 @@ breaking the other checks. The checks are fixed: change only the sketch. Keep th
 
 Return JSON: {"sketch": "<the complete fixed sketch>", "change": "<one sentence: what you changed and why>"}"""
 
-BENCH_SCHEMA = {"type": "object", "properties": {"bench": {"type": "object"}}, "required": ["bench"]}
+BENCH_SCHEMA = {"type": "object", "properties": {"bench": {"type": "object"}, "notes": {"type": "string"}},
+                "required": ["bench"]}
 SKETCH_SCHEMA = {"type": "object", "properties": {"sketch": {"type": "string"}, "notes": {"type": "string"}},
                  "required": ["sketch"]}
 FIX_SCHEMA = {"type": "object", "properties": {"sketch": {"type": "string"}, "change": {"type": "string"}},

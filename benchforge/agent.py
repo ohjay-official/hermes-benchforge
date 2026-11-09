@@ -17,7 +17,7 @@ class DraftError(RuntimeError):
     pass
 
 
-def _ask(llm, instructions: str, text: str, schema: dict, purpose: str, max_tokens: int = 6000):
+def _ask(llm, instructions: str, text: str, schema: dict, purpose: str, max_tokens: int = 16000):
     result = llm.complete_structured(instructions=instructions, input=[{"type": "text", "text": text}],
                                      json_schema=schema, purpose=purpose, max_tokens=max_tokens, timeout=240)
     parsed = getattr(result, "parsed", None)
@@ -31,16 +31,18 @@ def _ask(llm, instructions: str, text: str, schema: dict, purpose: str, max_toke
 
 
 def write_bench(llm, request: str, attempts: int = 3):
-    """The person's words -> a valid Bench. Validation errors go back to the model to correct."""
+    """The person's words -> (a valid Bench, notes on anything left out). Validation errors go back to the
+    model to correct."""
     text = request.strip()
     last = ""
     for _ in range(attempts):
         prompt = text if not last else (text + "\n\nYour previous bench was rejected: " + last +
                                           "\nReturn a corrected bench.")
-        parsed = _ask(llm, prompts.BENCH_WRITER, prompt, prompts.BENCH_SCHEMA, "benchforge.bench", 4000)
+        parsed = _ask(llm, prompts.BENCH_WRITER, prompt, prompts.BENCH_SCHEMA, "benchforge.bench", 12000)
         raw = parsed.get("bench", parsed)
+        notes = parsed.get("notes") if isinstance(parsed.get("notes"), str) else ""
         try:
-            return load(raw)
+            return load(raw), notes.strip()[:300]
         except BenchError as exc:
             last = str(exc)
     raise DraftError(f"couldn't draft a valid bench: {last}")

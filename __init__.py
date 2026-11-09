@@ -221,9 +221,9 @@ def _cmd_new(ctx, ws, request: str, source) -> str:
 
     progress = _Progress(ctx)
     progress.add("🧪 Writing the checks…")
-    bench = agent.write_bench(ctx.llm, request)
+    bench, notes = agent.write_bench(ctx.llm, request)
     did = ws.save_draft(bench, request, by=_who(source))
-    progress.set_last(f"🧪 Draft {did}")
+    progress.set_last(f"🧪 Draft {did}" + (f"\n⚠ Not simulated: {notes}" if notes else ""))
     choice = _ask_approval(ctx, ws, bench, did, progress)
     if choice is None:
         return (f"Saved as draft {did}. Send /bench approve {did} to lock these checks and build, "

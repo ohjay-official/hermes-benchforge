@@ -88,8 +88,8 @@ def main() -> int:
     for req in REQUESTS:
         print(f"\n━━ {req}")
         t = time.time()
-        bench = agent.write_bench(llm, req)
-        print("\n".join("   " + line for line in describe(bench)))
+        bench, notes = agent.write_bench(llm, req)
+        print("\n".join("   " + line for line in describe(bench)) + (f"\n   notes: {notes}" if notes else ""))
         sketch = agent.write_sketch(llm, req, bench)
         rounds = ws.forge(bench, sketch, agent.fixer(llm, bench),
                           progress=lambda r: print(f"   round {r.n}: " + (
