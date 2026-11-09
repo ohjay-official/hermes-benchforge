@@ -117,8 +117,9 @@ def decide(tool_name: str, args: dict, data_dir: Path):
     for seg, paths in flashing:
         if not paths:
             return _block("This would flash firmware that BenchForge has not tested (it builds or uploads a "
-                          "sketch folder). Run /bench on it first; a passing run saves the exact .hex and "
-                          "prints the upload command for it.")
+                          "sketch folder). Test the sketch with the bench_test tool, or have the person send "
+                          "/bench <what the board should do>; a passing run saves the exact .hex and gives the "
+                          "upload command for it.")
         for raw in paths:
             p = Path(os.path.expanduser(raw))
             if not p.is_absolute():
@@ -132,13 +133,13 @@ def decide(tool_name: str, args: dict, data_dir: Path):
             sha = hashlib.sha256(data).hexdigest()
             if _passing(sha, data_dir) is None:
                 return _block(f"{p.name} (firmware {sha[:12]}) has no passing BenchForge receipt for checks a "
-                              "person approved. Run /bench on the sketch; only firmware that passes every approved "
-                              "check is allowed onto a real board.")
+                              "person approved. Only firmware that passes every check a person approved may go onto "
+                              "a real board: test it with bench_test, and have the person approve the checks.")
     return None
 
 
 def _block(why: str) -> dict:
-    return {"action": "block", "message": f"🛑 BenchForge flash gate: {why}"}
+    return {"action": "block", "message": f"🛑 BenchForge flash gate: {why} (Show the person this message as it is.)"}
 
 
 def mark_passing(receipt: dict, receipt_path: Path, data_dir: Path) -> None:
