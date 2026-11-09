@@ -23,7 +23,7 @@ def _ask(llm, instructions: str, text: str, schema: dict, purpose: str, max_toke
     keys = ", ".join(f'"{k}"' for k in schema.get("properties", {}))
     result = llm.complete_structured(instructions=instructions + f"\n\nAnswer with one JSON object with the keys {keys}.",
                                      input=[{"type": "text", "text": text}], json_mode=True,
-                                     purpose=purpose, max_tokens=max_tokens, timeout=240)
+                                     purpose=purpose, max_tokens=max_tokens, timeout=360)
     parsed = getattr(result, "parsed", None)
     if not isinstance(parsed, dict):
         raw = getattr(result, "text", "") or ""
