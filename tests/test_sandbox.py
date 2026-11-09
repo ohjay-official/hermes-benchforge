@@ -25,11 +25,12 @@ console.log(JSON.stringify(out));
 @unittest.skipUnless(NODE and node_version(NODE)[:1] >= (20,), "needs Node.js 20+")
 class NodeSandbox(unittest.TestCase):
     def test_engine_process_is_boxed_in(self):
-        d = Path(tempfile.mkdtemp())
+        d = Path(tempfile.mkdtemp()).resolve()      # macOS temp folders sit behind a symlink
         (d / "probe.js").write_text(PROBE)
         flags = [f.replace(str(sim.ENGINE_DIR), str(d)) for f in sim.permission_flags(node_version(NODE))]
         p = subprocess.run([NODE, *flags, "--disallow-code-generation-from-strings", str(d / "probe.js")],
                            capture_output=True, text=True, timeout=30)
+        self.assertTrue(p.stdout.strip(), p.stderr)
         got = json.loads(p.stdout.strip().splitlines()[-1])
         self.assertEqual(got, {"read": "ERR_ACCESS_DENIED", "write": "ERR_ACCESS_DENIED", "exec": "ERR_ACCESS_DENIED",
                                "worker": "ERR_ACCESS_DENIED", "eval": "EvalError"})
