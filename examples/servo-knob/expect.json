@@ -1,0 +1,12 @@
+{
+  "draft.ino": {
+    "verdict": "fail",
+    "fails": [
+      "unplugged_knob/unplugged_knob_arm"
+    ]
+  },
+  "fixed.ino": {
+    "verdict": "pass",
+    "fails": []
+  }
+}

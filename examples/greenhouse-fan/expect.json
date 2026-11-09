@@ -1,0 +1,14 @@
+{
+  "draft.ino": {
+    "verdict": "fail",
+    "fails": [
+      "rollover/heartbeat",
+      "unplugged_temp/fan_chatter",
+      "unplugged_temp/unplugged_temp_fan"
+    ]
+  },
+  "fixed.ino": {
+    "verdict": "pass",
+    "fails": []
+  }
+}

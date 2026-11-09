@@ -1,0 +1,18 @@
+{
+  "bench": 1,
+  "name": "parking-sensor",
+  "board": "uno",
+  "goal": "Garage parking sensor: an HC-SR04 (trig D9, echo D10) faces the car. The buzzer on D8 sounds 1 kHz when the car is closer than 30 cm and is silent beyond 40 cm. If the sensor stops answering, the buzzer sounds so nobody trusts a dead sensor.",
+  "parts": [
+    {"id": "sonar", "type": "hcsr04", "trig": "D9", "echo": "D10", "start": 400},
+    {"id": "buzzer", "type": "buzzer", "pin": "D8"}
+  ],
+  "steps": [
+    {"id": "quiet_when_clear", "expect": {"part": "buzzer", "stays": "silent", "for_ms": 1000}},
+    {"id": "car_far_quiet", "set": {"sonar": 120}, "expect": {"part": "buzzer", "stays": "silent", "for_ms": 1000}},
+    {"id": "car_close_beeps", "set": {"sonar": 25}, "expect": {"part": "buzzer", "becomes": {"hz": 1000}, "within_ms": 500}},
+    {"id": "still_close_beeps", "set": {"sonar": 35}, "expect": {"part": "buzzer", "stays": {"hz": 1000}, "for_ms": 1000}},
+    {"id": "car_leaves_quiet", "set": {"sonar": 150}, "expect": {"part": "buzzer", "becomes": "silent", "within_ms": 500}}
+  ],
+  "unplugged": {"sonar": {"buzzer": {"hz": 1000}}}
+}

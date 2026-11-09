@@ -1,0 +1,23 @@
+{
+  "bench": 1,
+  "name": "greenhouse-fan",
+  "board": "uno",
+  "goal": "Greenhouse fan: an LM35 on A0 reads the air. The fan relay on D7 turns on above 30 °C and off below 27 °C. The LED on D13 blinks once a second so you can see the controller is alive.",
+  "parts": [
+    {"id": "temp", "type": "lm35", "pin": "A0", "start": 25},
+    {"id": "fan", "type": "relay", "pin": "D7"},
+    {"id": "led", "type": "led", "pin": "D13"}
+  ],
+  "steps": [
+    {"id": "boots_off", "expect": {"part": "fan", "stays": "off", "for_ms": 1500}},
+    {"id": "hot_turns_on", "set": {"temp": 32}, "expect": {"part": "fan", "becomes": "on", "within_ms": 1000}},
+    {"id": "holds_in_band", "set": {"temp": 28.5}, "expect": {"part": "fan", "stays": "on", "for_ms": 2000}},
+    {"id": "cool_turns_off", "set": {"temp": 26}, "expect": {"part": "fan", "becomes": "off", "within_ms": 1000}},
+    {"id": "stays_off_in_band", "set": {"temp": 29}, "expect": {"part": "fan", "stays": "off", "for_ms": 2000}},
+    {"id": "just_over_turns_on", "set": {"temp": 30.8}, "expect": {"part": "fan", "becomes": "on", "within_ms": 1000}}
+  ],
+  "always": [
+    {"id": "heartbeat", "expect": {"part": "led", "blinks_hz": 1}}
+  ],
+  "unplugged": {"temp": {"fan": "on"}}
+}

@@ -1,0 +1,12 @@
+{
+  "draft.ino": {
+    "verdict": "fail",
+    "fails": [
+      "unplugged_sonar/unplugged_sonar_buzzer"
+    ]
+  },
+  "fixed.ino": {
+    "verdict": "pass",
+    "fails": []
+  }
+}

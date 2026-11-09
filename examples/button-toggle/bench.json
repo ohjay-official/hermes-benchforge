@@ -1,0 +1,19 @@
+{
+  "bench": 1,
+  "name": "button-toggle",
+  "board": "uno",
+  "goal": "A push button on D2 (to ground, using the internal pull-up) toggles the lamp on D13: press once for on, press again for off.",
+  "parts": [
+    {"id": "button", "type": "button", "pin": "D2"},
+    {"id": "lamp", "type": "led", "pin": "D13"}
+  ],
+  "steps": [
+    {"id": "starts_off", "expect": {"part": "lamp", "stays": "off", "for_ms": 500}},
+    {"id": "press_turns_on", "set": {"button": true}, "expect": {"part": "lamp", "becomes": "on", "within_ms": 100}},
+    {"id": "release_keeps_on", "set": {"button": false}, "expect": {"part": "lamp", "stays": "on", "for_ms": 500}},
+    {"id": "press_turns_off", "set": {"button": true}, "expect": {"part": "lamp", "becomes": "off", "within_ms": 100}},
+    {"id": "release_keeps_off", "set": {"button": false}, "expect": {"part": "lamp", "stays": "off", "for_ms": 500}},
+    {"id": "third_press_on", "set": {"button": true}, "expect": {"part": "lamp", "becomes": "on", "within_ms": 100}},
+    {"id": "third_release_on", "set": {"button": false}, "expect": {"part": "lamp", "stays": "on", "for_ms": 500}}
+  ]
+}

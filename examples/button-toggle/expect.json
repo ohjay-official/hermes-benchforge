@@ -1,0 +1,14 @@
+{
+  "draft.ino": {
+    "verdict": "fail",
+    "fails": [
+      "bounce/release_keeps_off",
+      "bounce/release_keeps_on",
+      "bounce/third_release_on"
+    ]
+  },
+  "fixed.ino": {
+    "verdict": "pass",
+    "fails": []
+  }
+}

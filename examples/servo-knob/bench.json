@@ -1,0 +1,18 @@
+{
+  "bench": 1,
+  "name": "servo-knob",
+  "board": "uno",
+  "goal": "A knob (potentiometer on A0) steers a servo on D9 from 0° to 180°. If the knob's wire breaks, the servo parks at 90° instead of thrashing.",
+  "parts": [
+    {"id": "knob", "type": "potentiometer", "pin": "A0", "start": 50},
+    {"id": "arm", "type": "servo", "pin": "D9"}
+  ],
+  "steps": [
+    {"id": "starts_centre", "expect": {"part": "arm", "becomes": {"angle": 90}, "within_ms": 800}},
+    {"id": "knob_left", "set": {"knob": 0}, "expect": {"part": "arm", "becomes": {"angle": 0}, "within_ms": 500}},
+    {"id": "knob_right", "set": {"knob": 100}, "expect": {"part": "arm", "becomes": {"angle": 180}, "within_ms": 500}},
+    {"id": "knob_quarter", "set": {"knob": 25}, "expect": {"part": "arm", "becomes": {"angle": 45, "tolerance": 6}, "within_ms": 500}},
+    {"id": "holds_steady", "expect": {"part": "arm", "stays": {"angle": 45, "tolerance": 6}, "for_ms": 1000}}
+  ],
+  "unplugged": {"knob": {"arm": {"angle": 90, "tolerance": 6}}}
+}
