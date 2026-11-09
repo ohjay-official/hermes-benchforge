@@ -3,8 +3,9 @@
 Everything BenchForge installs lives in one folder it owns (``<root>``, normally
 ``<HERMES_HOME>/plugin-data/benchforge/toolchain``):
 
-    arduino-cli/<version>/arduino-cli     the official binary from github.com/arduino/arduino-cli,
-                                          checked against the SHA-256 pinned below before it is unpacked
+    arduino-cli/<version>/arduino-cli     the official binary, from Arduino's download server or the
+                                          GitHub release, checked against the SHA-256 pinned below
+                                          before it is unpacked
     arduino-cli.yaml                      a config that keeps arduino-cli's data inside <root>
     arduino15/                            the AVR core (arduino:avr) and its avr-gcc, installed by
                                           arduino-cli from Arduino's own package index (it checks each
@@ -153,9 +154,18 @@ class Toolchain:
         if self.arduino_cli() is None:
             suffix = _asset_suffix()
             name = f"arduino-cli_{ARDUINO_CLI_VERSION}_{suffix}"
-            url = f"https://github.com/arduino/arduino-cli/releases/download/v{ARDUINO_CLI_VERSION}/{name}"
-            log(f"Downloading {name} from github.com/arduino/arduino-cli")
-            data = _download(url)
+            data = None
+            errors = []
+            for url in (f"https://downloads.arduino.cc/arduino-cli/{name}",
+                        f"https://github.com/arduino/arduino-cli/releases/download/v{ARDUINO_CLI_VERSION}/{name}"):
+                log(f"Downloading {name} from {url.split('/')[2]}")
+                try:
+                    data = _download(url)
+                    break
+                except ToolchainError as exc:
+                    errors.append(str(exc))
+            if data is None:
+                raise ToolchainError("could not download arduino-cli: " + "; ".join(errors))
             got = hashlib.sha256(data).hexdigest()
             if got != ARDUINO_CLI_SHA256[suffix]:
                 raise ToolchainError(f"{name} failed its checksum (got {got}); nothing was installed")
@@ -174,7 +184,7 @@ class Toolchain:
         return state
 
 
-def _download(url: str, attempts: int = 4) -> bytes:
+def _download(url: str, attempts: int = 3) -> bytes:
     """Fetch a release asset, retrying the brief 5xx hiccups GitHub's download servers sometimes give."""
     import time
     import urllib.error
