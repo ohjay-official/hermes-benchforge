@@ -53,16 +53,16 @@ class Layout:
     after a chat app re-encodes the animation and shrinks it to a phone's width."""
 
     W = 400
-    CARD_X, CARD_W, CARD_H, GAP = 36, 350, 46, 8
+    CARD_X, CARD_W, CARD_H, GAP = 36, 350, 54, 8
     LANES = 7                                              # wire lanes in the left gutter
 
     def __init__(self, n_parts: int):
         self.board = (80, 80, 250, 176)                    # x, y, w, h
         self.cards_y = 288
         self.cards_end = self.cards_y + n_parts * (self.CARD_H + self.GAP) - self.GAP
-        self.serial_y = self.cards_end + 10
-        self.tl_y = self.cards_end + 38
-        self.step_y = self.tl_y + 32
+        self.serial_y = self.cards_end + 12
+        self.tl_y = self.cards_end + 48
+        self.step_y = self.tl_y + 42
         self.H = self.step_y + 50
 
     def card_y(self, i: int) -> int:
@@ -158,8 +158,8 @@ def _card(c: Canvas, L: Layout, part: dict, y: int, state: dict, color: int) -> 
     c.rect(CARD_X, y + 8, 3, CARD_H - 16, color)
     pid, ptype = part["id"], part["type"]
     pins = "/".join(part["pins"].values())
-    c.text(CARD_X + 62, y + 4, pid, TEXT, "big")
-    c.text(CARD_X + 62, y + 27, f"{SHORT.get(ptype, ptype)} · {pins}", DIM)
+    c.text(CARD_X + 62, y + 5, pid, TEXT, "big")
+    c.text(CARD_X + 62, y + 29, f"{SHORT.get(ptype, ptype)} · {pins}", DIM, "big")
     ix, iy = CARD_X + 30, y + CARD_H // 2
     vx = CARD_X + CARD_W - 12
     value, vcolor = "", TEXT
@@ -238,7 +238,7 @@ def _card(c: Canvas, L: Layout, part: dict, y: int, state: dict, color: int) -> 
         c.circle(ix + 9, iy, 6, CHIP)
         value = "unplugged" if state.get("unplugged") else (f"{cm:.0f} cm" if cm < 400 else "clear")
         vcolor = RED if state.get("unplugged") else (AMBER if cm < 40 else TEXT)
-    c.text(vx - Canvas.text_width(value, "big"), y + 13, value, vcolor, "big")
+    c.text(vx - Canvas.text_width(value, "big"), y + 16, value, vcolor, "big")
 
 
 def _pwm_parts(bench, trace: Trace) -> dict:
@@ -260,7 +260,8 @@ def _states(bench, trace: Trace, t: int, prev_t: int, spins: dict, pwm: dict) ->
         st: dict = {}
         if ptype in ("led", "relay", "digital_out"):
             act = trace.active(pid)
-            st["active"] = act[t]
+            seen = [a for a in act[prev_t:t + 1] if a is not None]
+            st["active"] = act[t] if not seen or ptype != "led" else max(seen)
             st["pwm"] = pwm.get(pid, False)
             if ptype == "relay":
                 edges = [us for us, _v in trace.pin(pid)["edges"] if prev_t * 1000 < us <= t * 1000]
@@ -301,7 +302,7 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
     base = Canvas(W, H, BG)
     base.text(14, 12, "BenchForge", CYAN, "big")
     sub = f"{bench.name} · {title}"
-    base.text(14, 38, sub if len(sub) <= 52 else sub[:51] + "…", DIM)
+    base.text(14, 40, sub if len(sub) <= 37 else sub[:36] + "…", DIM, "big")
     badge = f"{'✓' if verdict_ok else '✗'} {score}"
     bw = Canvas.text_width(badge, "big") + 20
     base.round_rect(W - bw - 14, 12, bw, 28, 8, DKGREEN if verdict_ok else DKRED)
@@ -338,25 +339,25 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
         last = next((txt for at, txt in reversed(serial) if at <= t), None)
         if last is not None:
             shown = "".join(ch if 32 <= ord(ch) < 127 else "?" for ch in last)
-            room = (W - 28) // Canvas.text_width("x") - 8
-            c.text(14, L.serial_y, "Serial: " + (shown if len(shown) <= room else shown[:room - 1] + "…"), DIM)
+            room = (W - 28) // Canvas.text_width("x", "big") - 8
+            c.text(14, L.serial_y, "Serial: " + (shown if len(shown) <= room else shown[:room - 1] + "…"), DIM, "big")
         x = tl_x + tl_w * t / dur
         c.rect(x - 1, tl_y - 5, 3, 16, WHITE)
         clock = f"{t / 1000:.1f} s" + (f"  ×{speed:g}" if speed > 1 else "")
-        c.text(W - 14 - Canvas.text_width(clock), tl_y + 12, clock, DIM)
+        c.text(W - 14 - Canvas.text_width(clock, "big"), tl_y + 12, clock, DIM, "big")
         step = next((s for s in bench.steps if s.window.start_ms <= t < s.window.end_ms), None)
         if step is not None:
             n = bench.steps.index(step) + 1
             r = by_id.get(step.id)
-            end = c.text(tl_x, tl_y + 12, f"Check {n} of {len(bench.steps)}", DIM)
+            end = c.text(tl_x, tl_y + 12, f"Check {n} of {len(bench.steps)}", DIM, "big")
             if r is not None:
-                c.text(end + 7, tl_y + 12, "✓ pass" if r.passed else "✗ FAIL", GREEN if r.passed else RED)
+                c.text(end + 10, tl_y + 12, "✓ pass" if r.passed else "✗ FAIL", GREEN if r.passed else RED, "big")
             for k, line in enumerate(_wrap(step.text, per_line, 2)):
                 c.text(tl_x, L.step_y + k * 23, line, TEXT, "big")
         elif bench.steps and t >= bench.steps[-1].window.end_ms:
             # the tail of the run, which the last frame holds: say how it went
             failed = [s for s in bench.steps if by_id.get(s.id) is not None and not by_id[s.id].passed]
-            c.text(tl_x, tl_y + 12, "Result", DIM)
+            c.text(tl_x, tl_y + 12, "Result", DIM, "big")
             if failed:
                 c.text(tl_x, L.step_y, f"✗ Check {bench.steps.index(failed[0]) + 1} failed", RED, "big")
                 c.text(tl_x, L.step_y + 23, _wrap(failed[0].text, per_line, 1)[0], TEXT, "big")

@@ -195,7 +195,10 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
 
         url = live.link(live.payload(final.bench, final.build, final.report))
         if len(url) <= LINK_LIMIT.get(platform, 30000):
-            lines.append(f"▶ Watch it run in your browser: {url}")
+            if platform == "telegram":         # a 2 KB link reads as a wall of text: put it behind words
+                lines.append(f"▶ [Watch it run in your browser]({url})")
+            else:
+                lines.append(f"▶ Watch it run in your browser: {url}")
         else:
             lines.append("▶ Watch it run: open live.html from the zip, or load the zip on " + live.LIVE_URL)
     except Exception:
