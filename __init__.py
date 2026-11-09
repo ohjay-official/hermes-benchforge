@@ -414,7 +414,10 @@ def _test(args: dict, **_kw) -> str:
                 result["watch_it_run"] = live.link(live.payload(out.bench, out.build, out.report))
             except Exception:
                 logger.debug("benchforge live link failed", exc_info=True)
-            if not result["approved"]:
+            if result["approved"]:
+                result["flash_with"] = (f"arduino-cli upload -p <port> --fqbn arduino:avr:uno --input-file "
+                                        f"{out.hex_path}  (the flash gate allows exactly this firmware)")
+            else:
                 did = ws.save_draft(bench, bench.goal or bench.name, sketch=sketch)
                 result["approval_needed"] = (
                     f"Passed, but no person has approved these checks yet. Show them the checks above and ask "
