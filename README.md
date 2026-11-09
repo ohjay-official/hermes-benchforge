@@ -229,7 +229,7 @@ A prompt can say "I tested it". BenchForge actually runs the code:
 
 **Does my code go anywhere?** Only to your own model provider, through Hermes, for `/bench`. Compiling and simulating happen on your machine. Live links carry the firmware after the `#`, which browsers never send to a server.
 
-**How long does it take?** Compiling and running every test takes about 5 seconds a round. The rest is the model: the demo went green in 19 seconds over two fixes on gemini-3.5-flash; the four fixes in the Telegram run above took under two minutes.
+**How long does it take?** Compiling and running every test takes about 5 seconds a round. The rest is the model: the demo went green in 19 seconds over two fixes on gemini-3.5-flash; the Telegram run above, on a slower model with four fixes, took about six minutes from approval to the result.
 
 **Why only the Uno?** It's the most common Arduino, and its chip has a mature open emulator. ESP32 and I2C parts are the next step.
 
