@@ -27,6 +27,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Rosetta (Arduino's AVR compiler for macOS is an Intel program)
+        if: runner.os == 'macOS'
+        run: softwareupdate --install-rosetta --agree-to-license
+
       - name: Unit tests (no compiler needed)
         run: python -m unittest discover -s tests -t . -v
 
@@ -43,3 +47,17 @@ jobs:
         run: |
           python -m benchforge run examples/greenhouse-fan/bench.json examples/greenhouse-fan/fixed.ino --json > receipt.json
           python -m benchforge verify receipt.json examples/greenhouse-fan/fixed.ino
+
+  hermes:
+    name: hermes plugin checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Hermes Agent (latest stable)
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: hermes plugins validate (the catalog's own admission check)
+        run: hermes plugins validate . --install-deps
+      - name: hermes plugins doctor
+        run: hermes plugins doctor . --ci

@@ -151,6 +151,9 @@ class Toolchain:
             raise ToolchainError("BenchForge needs Node.js 18 or newer for its chip simulator. "
                                  "Run `hermes pm install node`, or install it from nodejs.org, then retry.")
         log(f"Node.js {'.'.join(map(str, node_version(node)))} found")
+        if platform.system() == "Darwin" and platform.machine() == "arm64" and not _rosetta():
+            raise ToolchainError("Arduino's AVR compiler for macOS is an Intel program, so Apple Silicon Macs need "
+                                 "Rosetta: run `softwareupdate --install-rosetta --agree-to-license`, then retry.")
         if self.arduino_cli() is None:
             suffix = _asset_suffix()
             name = f"arduino-cli_{ARDUINO_CLI_VERSION}_{suffix}"
@@ -239,6 +242,13 @@ def _extract_binary(data: bytes, suffix: str, dest: Path) -> Path:
             target.write_bytes(f.read())
     target.chmod(0o755)
     return target
+
+
+def _rosetta() -> bool:
+    try:
+        return subprocess.run(["arch", "-x86_64", "/usr/bin/true"], capture_output=True, timeout=20).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 # ---------------------------------------------------------------- Node.js

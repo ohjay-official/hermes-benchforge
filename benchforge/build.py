@@ -216,6 +216,14 @@ def _arduino_cli(tc: Toolchain | None, sketch_dir: Path, out: Path, work: Path, 
         raise BuildError(f"compiling took longer than {timeout} s and was stopped") from None
     log = _clean_log((p.stdout or "") + "\n" + (p.stderr or ""), work, sketch_dir.name)
     if p.returncode != 0:
+        if "error" not in log.replace("Error during build", "").lower():
+            # arduino-cli hides a failing tool's own message unless asked to be verbose
+            try:
+                v = tc.run_cli(*args, "--verbose", timeout=timeout)
+                tail = _clean_log((v.stdout or "") + "\n" + (v.stderr or ""), work, sketch_dir.name)
+                log = log + "\n" + tail[-2500:]
+            except subprocess.TimeoutExpired:
+                pass
         raise BuildError("the sketch did not compile", log)
     return log, f"arduino-cli ({FQBN})"
 
