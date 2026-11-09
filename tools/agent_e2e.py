@@ -37,11 +37,25 @@ def ask(text: str, previous: str | None = None) -> dict:
         return json.loads(r.read())
 
 
+def called_tools(item: dict) -> list:
+    """Tool names a function call ran. Hermes can load tools lazily: then the model finds them with
+    tool_search and runs them through the tool_call wrapper, so look inside it."""
+    name = item.get("name")
+    if name != "tool_call":
+        return [name]
+    try:
+        inner = json.loads(item.get("arguments") or "{}").get("calls", [])
+        return [c.get("name") for c in inner if isinstance(c, dict)]
+    except ValueError:
+        return [name]
+
+
 def calls(resp: dict) -> list:
     out = []
     for item in resp.get("output", []):
         if item.get("type") == "function_call":
-            out.append(("call", item.get("name"), item.get("arguments", "")[:300]))
+            for name in called_tools(item):
+                out.append(("call", name, item.get("arguments", "")[:300]))
         elif item.get("type") == "function_call_output":
             out.append(("result", item.get("call_id"), str(item.get("output", ""))[:400]))
     return out
