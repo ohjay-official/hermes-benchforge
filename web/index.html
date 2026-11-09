@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BenchForge Live Board</title>
+<meta name="description" content="Arduino firmware tested by BenchForge, running on a simulated ATmega328P in your browser.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">BenchForge</span> <span id="bench-name" class="dim">loading…</span></div>
+  <div id="badge" class="badge">…</div>
+</header>
+
+<main>
+  <p id="goal" class="goal"></p>
+
+  <section class="stage">
+    <svg id="board" viewBox="0 0 640 330" role="img" aria-label="Arduino Uno with its parts"></svg>
+    <div class="transport">
+      <button id="play" class="primary">▶ Play the bench</button>
+      <button id="live">✋ Try it yourself</button>
+      <label class="speed">speed
+        <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="5">5×</option></select>
+      </label>
+      <span id="clock" class="clock">0.0 s</span>
+    </div>
+    <div id="timeline" class="timeline"></div>
+    <div id="now" class="now"></div>
+  </section>
+
+  <section id="controls" class="controls" hidden></section>
+
+  <section class="panel">
+    <h2>Serial Monitor</h2>
+    <pre id="serial" class="serial"></pre>
+  </section>
+
+  <section class="panel">
+    <h2>The Checks</h2>
+    <ol id="checks" class="checks"></ol>
+    <h2>Crash Tests</h2>
+    <ul id="runs" class="runs"></ul>
+    <p class="dim small" id="fw"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Load Your Own</h2>
+    <p class="small">Open the <b>.zip</b> BenchForge sent you. It is read here, in your browser, and never uploaded.</p>
+    <input type="file" id="file" accept=".zip,.json">
+    <p class="small dim">Demos: <a href="#demo=greenhouse-fan">greenhouse fan</a> · <a href="#demo=greenhouse-fan-draft">its first draft</a> · <a href="#demo=button-toggle">button</a> · <a href="#demo=parking-sensor">parking sensor</a> · <a href="#demo=servo-knob">servo</a></p>
+  </section>
+</main>
+
+<footer class="small dim">
+  The firmware runs instruction by instruction on <a href="https://github.com/wokwi/avr8js">avr8js</a>'s ATmega328P, with BenchForge's simulated parts:
+  the same model the bench used. <a href="https://github.com/ohjay-official/hermes-benchforge">BenchForge for Hermes</a>
+</footer>
+
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

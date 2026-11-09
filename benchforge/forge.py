@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import build as B
-from . import gate, receipt
+from . import gate, live, receipt
 from .bench import fix_brief, run_bench
 from .spec import Bench, describe, wiring
 from .toolchain import Toolchain, ToolchainError, node_version
@@ -209,10 +209,15 @@ class Workspace:
         if out.passed:
             how += (f"Flash it (Arduino Uno on USB):\n  arduino-cli upload -p <port> --fqbn arduino:avr:uno "
                     f"--input-file {name}.hex\n  (or open {out.bench.name}.ino in the Arduino IDE and upload)\n")
+        how += ("\nWatch it run: open live.html in a browser (works offline), or load this zip on\n"
+                f"{live.LIVE_URL}\n")
+        p = live.payload(out.bench, out.build, out.report)
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr(f"{out.bench.name}.ino", out.sketch)
             z.writestr(f"{name}.hex", out.build.hex)
             z.writestr(f"{name}.receipt.json", out.receipt_path.read_text(encoding="utf-8"))
+            z.writestr("live.json", json.dumps(p, separators=(",", ":")))
+            z.writestr("live.html", live.standalone_html(p))
             z.writestr("README.txt", how)
         return path
 

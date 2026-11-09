@@ -62,6 +62,9 @@ def _show(out, *, as_json: bool, animate: bool = True) -> int:
         gif = _ws().animate(out)
         if gif:
             print(f"\nAnimation: {gif}")
+        from . import live
+
+        print(f"Watch it run: {live.link(live.payload(out.bench, out.build, out.report))}")
     if out.receipt_path:
         print(f"\nReceipt: {out.receipt_path}")
         if out.passed:

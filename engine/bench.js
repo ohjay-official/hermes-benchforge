@@ -109,14 +109,23 @@ function disconnectedVolts(part, rand) {
   return f.v;
 }
 
-// ---------------------------------------------------------------- the bench
+// ---------------------------------------------------------------- the board
 
-function runBench(spec) {
+// Build the chip and its parts. Returns a board you advance one simulated millisecond at a time:
+// the batch bench (runBench, below) and the live page in the browser share this exact model.
+function createBoard(spec, opts = {}) {
+  const record = opts.record !== false;
   const durationMs = Math.round(spec.duration_ms ?? 5000);
   if (!(durationMs > 0 && durationMs <= 120000)) throw new Error('duration_ms must be between 1 and 120000');
 
   const program = new Uint16Array(0x4000);
-  loadHex(spec.hex, new Uint8Array(program.buffer));
+  if (spec.bin) {
+    // a flat flash image (the browser page loads firmware this way)
+    if (spec.bin.length > 0x8000) throw new Error('Program does not fit in 32 KB of flash');
+    new Uint8Array(program.buffer).set(spec.bin);
+  } else {
+    loadHex(spec.hex, new Uint8Array(program.buffer));
+  }
   const cpu = new avr.CPU(program);
   new avr.AVRTimer(cpu, avr.timer0Config);
   new avr.AVRTimer(cpu, avr.timer1Config);
@@ -157,7 +166,7 @@ function runBench(spec) {
   // ---- pin recording
   const rec = {};
   for (const pin of watched) {
-    rec[pin] = { level: [], duty: [], edges: [], truncated: false, highCycles: 0, highSince: 0, windowStart: 0, last: null, pulseStart: null, lastPulseUs: null, rising: [] };
+    rec[pin] = { level: [], duty: [], edges: [], truncated: false, highCycles: 0, highSince: 0, windowStart: 0, last: null, pulseStart: null, lastPulseUs: null, rising: [], changes: 0, dutyNow: 0 };
   }
   const levelOf = (pin) => {
     const [port, bit] = UNO_PINS[pin];
@@ -180,6 +189,7 @@ function runBench(spec) {
       r.lastPulseUs = (now - r.pulseStart) / 16;
     }
     r.last = lv;
+    r.changes++;
     if (r.edges.length < MAX_EDGES_PER_PIN) r.edges.push([Math.round(now / 16), lv]);
     else r.truncated = true;
     const sonar = sonarByTrig[pin];
@@ -335,7 +345,7 @@ function runBench(spec) {
     rec[pin].highSince = 0;
   }
   const t0 = Date.now();
-  while (ms < durationMs) {
+  const stepMs = () => {
     for (const s of steps) {
       if (s.at_ms !== undefined && s.at_ms === ms) applyStep(s, ms);
       else if (s.ramp && ms >= s.from_ms && ms <= s.to_ms) applyStep(s, ms);
@@ -362,8 +372,13 @@ function runBench(spec) {
       const windowStart = ms * CYCLES_PER_MS;
       if (r.last === 1) r.highCycles += cpu.cycles - Math.max(r.highSince, windowStart);
       const span = cpu.cycles - windowStart;
-      r.level.push(r.last === null ? -1 : r.last);
-      r.duty.push(Math.round((r.highCycles / span) * 1000) / 1000);
+      r.dutyNow = Math.round((r.highCycles / span) * 1000) / 1000;
+      if (record) {
+        r.level.push(r.last === null ? -1 : r.last);
+        r.duty.push(r.dutyNow);
+      } else if (r.edges.length > 2000) {
+        r.edges.splice(0, r.edges.length - 1000);
+      }
       r.highCycles = 0;
       r.windowStart = cpu.cycles;
     }
@@ -380,11 +395,30 @@ function runBench(spec) {
         signals[`${part.id}.hz`] = ms >= 50 ? Math.round(r.rising.length * 20) : 0;
       }
     }
-    for (const k of Object.keys(signals)) sig[k].push(signals[k]);
+    if (record) for (const k of Object.keys(signals)) sig[k].push(signals[k]);
     ms++;
-    if (spec.max_wall_ms && Date.now() - t0 > spec.max_wall_ms) throw new Error('Simulation took too long');
-  }
+    for (const pin of watched) {
+      const r = rec[pin];
+      if (r.rising.length > 4096) r.rising.splice(0, r.rising.length - 2048);
+    }
+  };
 
+  // What a live view needs right now: each watched pin's level and duty, and every signal.
+  const now = () => {
+    const pins = {};
+    for (const pin of watched) {
+      const r = rec[pin];
+      pins[pin] = { level: r.last === null ? -1 : r.last, duty: r.dutyNow, changes: r.changes };
+    }
+    return { ms, pins, signals: { ...signals }, serial };
+  };
+  // Change an input or inject a fault immediately (the live page's sliders and buttons).
+  const apply = (stimulus) => {
+    if (!parts[stimulus.part]) throw new Error(`Unknown part "${stimulus.part}"`);
+    applyStep(stimulus, ms);
+  };
+
+  const result = () => {
   const pins = {};
   for (const pin of watched) {
     const r = rec[pin];
@@ -406,6 +440,22 @@ function runBench(spec) {
     serial,
     wall_ms: Date.now() - t0,
   };
+  };
+
+  return { stepMs, now, apply, result, parts, get ms() { return ms; }, durationMs, cpu };
 }
 
-module.exports = { runBench, normalizePin, PART_TYPES, UNO_PINS, loadHex };
+// ---------------------------------------------------------------- the bench
+
+// Run a whole bench in one go and return the recorded trace.
+function runBench(spec) {
+  const board = createBoard(spec);
+  const t0 = Date.now();
+  while (board.ms < board.durationMs) {
+    board.stepMs();
+    if (spec.max_wall_ms && Date.now() - t0 > spec.max_wall_ms) throw new Error('Simulation took too long');
+  }
+  return board.result();
+}
+
+module.exports = { runBench, createBoard, normalizePin, PART_TYPES, UNO_PINS, loadHex };

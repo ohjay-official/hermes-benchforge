@@ -127,7 +127,10 @@ def _round_line(r) -> str:
     return f"{head}: ✗ {good}/{total}{where} {what}{saw}"
 
 
-def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer=None) -> str:
+LINK_LIMIT = {"telegram": 3000, "discord": 1500, "whatsapp": 3000, "signal": 1500, "sms": 0}
+
+
+def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer=None, platform: str = "") -> str:
     from .benchforge.forge import MAX_FIX_ROUNDS
     from .benchforge.report import summary
 
@@ -163,6 +166,16 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     if final.passed:
         lines.append("The flash gate now allows this exact firmware onto a real board:")
         lines.append(f"arduino-cli upload -p <port> --fqbn arduino:avr:uno --input-file {_shown_path(final.hex_path)}")
+    try:
+        from .benchforge import live
+
+        url = live.link(live.payload(final.bench, final.build, final.report))
+        if len(url) <= LINK_LIMIT.get(platform, 30000):
+            lines.append(f"▶ Watch it run in your browser: {url}")
+        else:
+            lines.append("▶ Watch it run: open live.html from the zip, or load the zip on " + live.LIVE_URL)
+    except Exception:
+        logger.debug("benchforge live link failed", exc_info=True)
     gif = ws.animate(final)
     if gif:
         lines.append(f"MEDIA:{gif}")
@@ -187,7 +200,8 @@ def _approve_and_build(ctx, ws, draft: dict, source, progress: _Progress, *, dem
         progress.set_last("✍️ Sketch written. Compiling and putting it on the bench…")
     else:
         progress.add("🔌 Compiling and putting the sketch on the bench…")
-    return _forge_and_report(ctx, ws, bench, sketch, progress)
+    platform = getattr(getattr(source, "platform", None), "value", "") or ""
+    return _forge_and_report(ctx, ws, bench, sketch, progress, platform=platform)
 
 
 def _ask_approval(ctx, ws, bench, draft_id: str, progress: _Progress) -> Optional[str]:
