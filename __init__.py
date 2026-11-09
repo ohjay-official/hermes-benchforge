@@ -181,6 +181,10 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     gif = ws.animate(final)
     if gif:
         lines.append(f"MEDIA:{gif}")
+        if platform == "telegram":
+            # Telegram turns a local image into a still photo (the first frame); a GIF sent as a document
+            # arrives as an animation that plays inline.
+            lines.append("[[as_document]]")
     bundle = ws.bundle(final)
     if bundle:
         lines.append(f"MEDIA:{bundle}")
