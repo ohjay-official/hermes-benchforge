@@ -1,0 +1,42 @@
+name: judge path
+
+# The README's "In Hermes" steps, word for word, on a clean machine: install Hermes, install BenchForge
+# from GitHub the way a judge would, set it up and run the demo. Run it by hand from the Actions tab.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - name: Install Hermes Agent
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Rosetta (Arduino's AVR compiler for macOS is an Intel program)
+        if: runner.os == 'macOS'
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: hermes plugins install ohjay-official/hermes-benchforge --enable
+        run: hermes plugins install ohjay-official/hermes-benchforge --enable
+
+      - name: hermes bench setup
+        run: hermes bench setup
+
+      - name: hermes bench demo
+        run: |
+          hermes bench demo | tee demo.txt
+          grep -q "22/22" demo.txt
+
+      - name: The plugin is listed and enabled
+        run: hermes plugins list | grep -i benchforge
