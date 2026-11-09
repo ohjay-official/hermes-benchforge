@@ -61,6 +61,8 @@ jobs:
             printf 'GOOGLE_API_KEY=%s\n' "$GEMINI_API_KEY"
             printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
             printf 'TELEGRAM_ALLOWED_USERS=%s\n' "$TELEGRAM_ALLOWED_USERS"
+            # the first allowed user's private chat is home, so Hermes doesn't stop a demo to ask for one
+            printf 'TELEGRAM_HOME_CHANNEL=%s\n' "${TELEGRAM_ALLOWED_USERS%%,*}"
           } >> "$HOME/.hermes/.env"
           hermes config set model.provider gemini
           hermes config set model.default "$MODEL"
