@@ -33,6 +33,10 @@ def failing(out) -> list:
 
 
 def main(update: bool) -> int:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
     home = Path(os.environ.get("BENCHFORGE_HOME") or tempfile.mkdtemp(prefix="benchforge-golden-"))
     ws = Workspace(home)
     ok, missing = ws.ready()

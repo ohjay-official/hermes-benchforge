@@ -142,7 +142,7 @@ class Toolchain:
         if cli is None:
             raise ToolchainError("arduino-cli is not installed; run `hermes bench setup`")
         return subprocess.run([str(cli), *args, "--config-file", str(self.config), "--no-color"],
-                              capture_output=True, text=True, timeout=timeout, env=self.env(),
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, env=self.env(),
                               cwd=str(self.root))
 
     def install(self, log=print) -> dict:
@@ -276,7 +276,7 @@ def find_node(install: bool = False) -> str | None:
 
 def node_version(node: str) -> tuple:
     try:
-        out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=20).stdout.strip()
+        out = subprocess.run([node, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20).stdout.strip()
         return tuple(int(x) for x in out.lstrip("v").split(".")[:3])
     except (OSError, ValueError, subprocess.SubprocessError):
         return ()

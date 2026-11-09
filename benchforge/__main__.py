@@ -113,6 +113,11 @@ def cmd_demo(_a) -> int:
 
 
 def main(argv=None) -> int:
+    for stream in (sys.stdout, sys.stderr):           # ✓ and °C on a Windows console or a pipe
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     p = argparse.ArgumentParser(prog="benchforge", description="A flight simulator for AI-written Arduino firmware.")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("setup", help="install the pinned Arduino compiler").set_defaults(fn=cmd_setup)

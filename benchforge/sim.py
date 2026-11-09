@@ -47,7 +47,7 @@ def run(node: str, hex_text: str, parts: list, *, duration_ms: int, stimuli: lis
     if "SYSTEMROOT" in os.environ:
         env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
     try:
-        p = subprocess.run(args, input=json.dumps(spec), capture_output=True, text=True,
+        p = subprocess.run(args, input=json.dumps(spec), capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=max_wall_s + 15, env=env, cwd=str(ENGINE_DIR))
     except subprocess.TimeoutExpired:
         raise SimError(f"the simulation took longer than {max_wall_s:.0f} s and was stopped") from None

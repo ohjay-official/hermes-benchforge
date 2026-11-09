@@ -255,7 +255,7 @@ class BareAvrGcc:
         return cls(b, c, os.environ.get("BENCHFORGE_DEV_LIBS")) if b and c else None
 
     def _run(self, args, log):
-        p = subprocess.run(args, capture_output=True, text=True, timeout=120)
+        p = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         log.append(p.stdout + p.stderr)
         return p.returncode
 
