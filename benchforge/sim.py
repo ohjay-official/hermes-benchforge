@@ -22,6 +22,17 @@ class SimError(RuntimeError):
     pass
 
 
+def permission_flags(version: tuple) -> list:
+    """Node's permission model: read only the engine's folder; no child processes, workers or writes.
+    Stable as --permission from Node 22.13 / 23.5; --experimental-permission from Node 20."""
+    allow = f"--allow-fs-read={ENGINE_DIR}"
+    if version >= (23, 5) or (22, 13) <= version < (23,):
+        return ["--permission", allow]
+    if version >= (20,):
+        return ["--experimental-permission", allow, "--no-warnings"]
+    return []
+
+
 def run(node: str, hex_text: str, parts: list, *, duration_ms: int, stimuli: list | None = None,
         pokes: list | None = None, poke_at_pc: int | None = None, seed: int = 1, watch: list | None = None,
         max_wall_s: float = 120.0) -> dict:
@@ -30,9 +41,7 @@ def run(node: str, hex_text: str, parts: list, *, duration_ms: int, stimuli: lis
     if pokes:
         spec["pokes"] = pokes
         spec["poke_at_pc"] = poke_at_pc
-    args = [node]
-    if node_version(node)[:1] >= (20,):
-        args += ["--permission", f"--allow-fs-read={ENGINE_DIR}"]
+    args = [node, *permission_flags(node_version(node))]
     args += ["--max-old-space-size=1024", "--disallow-code-generation-from-strings", str(ENGINE_DIR / "sim.js")]
     env = {"PATH": os.environ.get("PATH", ""), "NODE_OPTIONS": "", "LANG": "C"}
     if "SYSTEMROOT" in os.environ:

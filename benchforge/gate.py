@@ -52,17 +52,19 @@ def _hex_targets(seg: list) -> tuple:
     words = [os.path.basename(w).lower() for w in seg]
     paths = []
     if "avrdude" in words or "avrdude.exe" in words:
+        writes = False
         for i, w in enumerate(seg):
-            spec = None
-            if w == "-U" and i + 1 < len(seg):
-                spec = seg[i + 1]
-            elif w.startswith("-U") and len(w) > 2:
-                spec = w[2:]
-            if spec:
-                m = re.match(r"(?:flash:)?w:(.+?)(?::[ihrsmb])?$", spec)
-                if m:
-                    paths.append(m.group(1))
-        return True, paths
+            spec = seg[i + 1] if w == "-U" and i + 1 < len(seg) else (w[2:] if w.startswith("-U") and len(w) > 2 else None)
+            if spec is None:
+                continue
+            m = re.fullmatch(r"(\w+):([rwv]):(.+?)(?::([iasmrbdhoeE]))?", spec)
+            if m is None:                       # "-U file.hex": avrdude's short form for writing flash
+                writes = True
+                paths.append(re.sub(r":[iasmrbdhoeE]$", "", spec))
+            elif m.group(1) == "flash" and m.group(2) == "w":
+                writes = True
+                paths.append(m.group(3))
+        return writes, paths
     if any(w in ("arduino-cli", "arduino-cli.exe") for w in words):
         if "upload" in seg or "--upload" in seg or "-u" in seg:
             for i, w in enumerate(seg):
@@ -102,6 +104,10 @@ def decide(tool_name: str, args: dict, data_dir: Path):
     workdir = args.get("workdir")
     segs = _segments(command)
     flashing = [(seg, paths) for seg in segs for is_flash, paths in [_hex_targets(seg)] if is_flash]
+    tools = {"avrdude", "avrdude.exe", "arduino-cli", "arduino-cli.exe", "pio", "platformio"}
+    plain = any(os.path.basename(w).lower() in tools for seg in segs for w in seg)
+    if not flashing and plain:
+        return None                       # the tool runs, but doesn't write a board's flash (list, read, verify)
     if not flashing:
         # The words are there but not as a plain command (inside sh -c "...", a script, a variable).
         return _block("BenchForge can't tell which firmware this command flashes. Flash a bench-tested "

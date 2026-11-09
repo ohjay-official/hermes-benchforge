@@ -125,10 +125,13 @@ class Toolchain:
     def env(self) -> dict:
         """A small, fixed environment for arduino-cli: none of the user's variables or secrets."""
         home = self.root / "home"
+        tmp = self.root / "tmp"
         home.mkdir(parents=True, exist_ok=True)
+        tmp.mkdir(parents=True, exist_ok=True)
         env = {"PATH": os.environ.get("PATH", ""), "HOME": str(home), "LANG": "C", "LC_ALL": "C",
+               "TMPDIR": str(tmp), "TEMP": str(tmp), "TMP": str(tmp),   # ctags needs a temp folder (macOS)
                "ARDUINO_UPDATER_ENABLE_NOTIFICATION": "false"}
-        for k in ("SYSTEMROOT", "TEMP", "TMP", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY",
+        for k in ("SYSTEMROOT", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY",
                   "https_proxy", "http_proxy", "no_proxy", "SSL_CERT_FILE"):
             if k in os.environ:
                 env[k] = os.environ[k]

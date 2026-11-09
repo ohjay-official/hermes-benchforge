@@ -244,7 +244,8 @@ class FlashGate(unittest.TestCase):
         return gate.decide("terminal", {"command": cmd, **extra}, self.dir)
 
     def test_other_commands_pass_through(self):
-        for cmd in ("ls", "arduino-cli board list", "arduino-cli compile --fqbn arduino:avr:uno ."):
+        for cmd in ("ls", "arduino-cli board list", "arduino-cli compile --fqbn arduino:avr:uno .",
+                    "avrdude -c arduino -p m328p -P /dev/ttyUSB0 -U flash:r:backup.hex:i", "avrdude -?"):
             self.assertIsNone(self.decide(cmd))
         self.assertIsNone(gate.decide("read_file", {"path": "x"}, self.dir))
 
@@ -261,6 +262,7 @@ class FlashGate(unittest.TestCase):
     def test_green_firmware_is_allowed(self):
         self.stamp("pass")
         self.assertIsNone(self.decide(f"avrdude -p m328p -U flash:w:{self.hex_path}:i"))
+        self.assertIsNone(self.decide(f"avrdude -p m328p -U {self.hex_path}"))
         self.assertIsNone(self.decide("arduino-cli upload -p COM3 --fqbn arduino:avr:uno --input-file fw.hex",
                                       workdir=str(self.dir)))
 
@@ -281,7 +283,8 @@ class FlashGate(unittest.TestCase):
         for cmd in ("arduino-cli compile -u -p COM3 --fqbn arduino:avr:uno .",
                     "arduino-cli upload -p COM3 --fqbn arduino:avr:uno ./sketch",
                     "pio run -t upload", f"sh -c 'avrdude -U flash:w:{self.hex_path}'",
-                    f"true && avrdude -U flash:w:{self.dir / 'other.hex'}"):
+                    f"true && avrdude -U flash:w:{self.dir / 'other.hex'}",
+                    f"avrdude -U {self.dir / 'other.hex'}", f"avrdude -Uflash:w:{self.dir / 'other.hex'}:i"):
             self.assertEqual(self.decide(cmd)["action"], "block", cmd)
 
 
