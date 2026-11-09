@@ -100,6 +100,61 @@ class Canvas:
         return len(s) * FONTS[size]["w"] * scale
 
 
+class HiCanvas:
+    """A Canvas drawn at ``k`` times the resolution of the coordinates it is given. Layout stays in 1x
+    units; shapes and text are rasterised at full size (text from the double-size font), so curves and
+    letters come out smooth instead of as doubled pixels."""
+
+    def __init__(self, w: int, h: int, bg: int = 0, k: int = 2, raw: "Canvas | None" = None):
+        self.k, self.w, self.h = k, w, h
+        self.raw = raw if raw is not None else Canvas(w * k, h * k, bg)
+
+    @property
+    def px(self) -> bytearray:
+        return self.raw.px
+
+    def copy(self) -> "HiCanvas":
+        return HiCanvas(self.w, self.h, k=self.k, raw=self.raw.copy())
+
+    def rect(self, x, y, w, h, color) -> None:
+        k = self.k
+        self.raw.rect(round(x * k), round(y * k), round(w * k), round(h * k), color)
+
+    def frame(self, x, y, w, h, color, t=1) -> None:
+        k = self.k
+        self.raw.frame(round(x * k), round(y * k), round(w * k), round(h * k), color, t * k)
+
+    def round_rect(self, x, y, w, h, r, color) -> None:
+        k = self.k
+        self.raw.round_rect(round(x * k), round(y * k), round(w * k), round(h * k), r * k, color)
+
+    def circle(self, cx, cy, r, color) -> None:
+        self.raw.circle(cx * self.k, cy * self.k, r * self.k, color)
+
+    def ring(self, cx, cy, r, color, t=2) -> None:
+        self.raw.ring(cx * self.k, cy * self.k, r * self.k, color, t * self.k)
+
+    def set(self, x, y, color) -> None:
+        self.raw.rect(round(x * self.k), round(y * self.k), self.k, self.k, color)
+
+    def line(self, x0, y0, x1, y1, color, t=1) -> None:
+        k = self.k
+        self.raw.line(x0 * k, y0 * k, x1 * k, y1 * k, color, max(1, round(t * k)))
+
+    def text(self, x, y, s, color, size="small", scale=1) -> int:
+        k = self.k
+        hi = f"{size}{k}" if f"{size}{k}" in FONTS else None
+        if hi:
+            end = self.raw.text(round(x * k), round(y * k), s, color, hi)
+        else:
+            end = self.raw.text(round(x * k), round(y * k), s, color, size, scale * k)
+        return round(end / k)
+
+    @staticmethod
+    def text_width(s: str, size: str = "small", scale: int = 1) -> int:
+        return Canvas.text_width(s, size, scale)
+
+
 # ---------------------------------------------------------------- GIF
 
 def _lzw(indices: bytes, min_size: int) -> bytes:

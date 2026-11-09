@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 
 from .checks import Trace
-from .gif import Canvas, write_gif
+from .gif import Canvas, HiCanvas, write_gif
 from .spec import PART_TYPES, fmt_ms
 
 
@@ -299,7 +299,7 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
     parts = list(bench.parts.values())[:6]
     L = Layout(len(parts))
     W, H = L.W, L.H
-    base = Canvas(W, H, BG)
+    base = HiCanvas(W, H, BG, k=scale) if scale > 1 else Canvas(W, H, BG)
     base.text(14, 12, "BenchForge", CYAN, "big")
     sub = f"{bench.name} · {title}"
     base.text(14, 40, sub if len(sub) <= 37 else sub[:36] + "…", DIM, "big")
@@ -375,8 +375,6 @@ def render(bench, run: dict, results: list, *, title: str, verdict_ok: bool, sco
     delays = [10] * len(frames)
     if delays:
         delays[-1] = 200
-    if scale == 2:
-        frames = [_double(f, W, H) for f in frames]
     return write_gif(frames, PALETTE, delays, W * scale, H * scale)
 
 

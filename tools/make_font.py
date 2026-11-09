@@ -12,7 +12,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 CHARS = "".join(chr(c) for c in range(32, 127)) + "°±·µ→✓✗…≈"
-SIZES = {"small": 11, "big": 17}
+# "small2" and "big2" are the same faces at twice the size, for animations drawn at double resolution:
+# their advance is exactly twice the 1x one, so layouts measured in 1x units line up.
+SIZES = {"small": 11, "big": 17, "small2": 23, "big2": 33}
 
 
 def glyphs(path, px):
