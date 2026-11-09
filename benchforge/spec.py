@@ -517,7 +517,11 @@ def _load_unplugged(u, parts) -> dict:
     out = {}
     for sid, states in u.items():
         if sid not in parts or parts[sid]["type"] not in SENSOR_TYPES:
-            raise BenchError(f"unplugged: {sid!r} is not a sensor in this bench")
+            sensors = [k for k, v in parts.items() if v["type"] in SENSOR_TYPES]
+            what = "is not a part" if sid not in parts else f"is a {parts[sid]['type']}, which can't be unplugged"
+            fix = (f"the sensors here are {', '.join(sensors)}" if sensors
+                   else "this bench has none, so leave unplugged out")
+            raise BenchError(f"unplugged: {sid!r} {what} (only {', '.join(sorted(SENSOR_TYPES))} can); {fix}")
         if not isinstance(states, dict) or not states:
             raise BenchError(f"unplugged.{sid}: name the outputs and the state they must fall back to")
         out[sid] = {}

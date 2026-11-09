@@ -19,7 +19,7 @@ BENCH_FORMAT = """BENCH FORMAT (JSON)
   "parts": [ ... ],
   "steps": [ ... checks, in time order ... ],
   "always": [ ... checks over the whole run (optional) ... ],
-  "unplugged": {"<sensor id>": {"<output id>": <safe state>}}
+  "unplugged": {"<sensor id>": {"<output id>": <safe state>}}   (optional; leave it out if there is no sensor)
 }
 
 PARTS (Arduino Uno; digital pins D2-D13, analog pins A0-A5; D0/D1 carry Serial and can't be used)
@@ -50,8 +50,9 @@ TIMING  Steps run back to back on one timeline. A step starts when the one befor
   "set" is applied at that moment. Temperatures glide to a new value over 250 ms. Keep the whole bench
   under 60 seconds.
 
-UNPLUGGED  For every sensor, the state each output must fall back to within 2 s if that sensor's wire
-  breaks mid-run (the pin then floats or sticks to a rail)."""
+UNPLUGGED  For every sensor (lm35, ntc, potentiometer, hcsr04; never a button or an output), the state
+  each output must fall back to within 2 s if that sensor's wire breaks mid-run (the pin then floats or
+  sticks to a rail)."""
 
 BENCH_WRITER = """You write test benches for Arduino Uno firmware. A person describes what their board should do;
 you turn that into a bench: the parts, how they are wired, and the checks that decide whether firmware

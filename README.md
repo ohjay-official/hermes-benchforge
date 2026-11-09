@@ -209,16 +209,17 @@ On every push, CI compiles all ten sketches with the real arduino-cli on Linux a
 
 | Area | Status |
 |---|---|
-| Compile with the real arduino-cli and AVR core, sealed | Works; CI on Linux and macOS (Apple Silicon needs Rosetta, Arduino's avr-gcc is Intel-only) |
+| Compile with the real arduino-cli and AVR core, sealed | Works; CI on Linux, macOS and Windows (Apple Silicon needs Rosetta, Arduino's avr-gcc is Intel-only) |
 | ATmega328P simulation with LEDs, relays, buzzer, servo, button, potentiometer, LM35, NTC, HC-SR04 | Works; 5 golden benches plus misbehaving-firmware tests |
 | Crash tests: noise, rollover, bounce, unplugged, relay chatter | Works; every one is caught by a golden draft |
 | Receipts and `verify` | Works; CI re-runs a receipt and requires an exact match |
-| Flash gate | Works; unit and end-to-end tests |
-| `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests; `hermes plugins validate` and `doctor` pass in CI |
+| Flash gate | Works; unit and end-to-end tests, and in a real Hermes gateway (below) the agent's own `arduino-cli upload` was blocked |
+| `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests and inside a real Hermes (Telegram and the API server); `hermes plugins validate` (security scan: safe) and `doctor` pass in CI |
 | Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, and the page is tested in Chromium at phone size |
 | The whole loop with a real model | Works: on gemini-3.5-flash, three plain-English requests (greenhouse fan, button lamp, parking sensor) all reached green, and `/bench demo` went from 20/23 to 22/22 in two fixes and 19 seconds ([`tools/llm_smoke.py`](tools/llm_smoke.py), run on demand in CI) |
-| Live run on Telegram with a real model | Being filmed for the demo; this row is updated when it's done |
-| Windows | Not tested yet |
+| Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 and delivered the animation, the bundle and the live link ([`demo-bot.yml`](.github/workflows/demo-bot.yml)) |
+| The agent on its own, in a real Hermes gateway | Works: asked for a button-toggle lamp and told to test it with BenchForge, the agent (gemini-3.5-flash-lite) found `bench_guide` and `bench_test` through Hermes's tool search, wrote its own bench, tested the sketch until it passed and gave the receipt id. Asked to flash it, it ran `arduino-cli upload` itself and the flash gate stopped it: nobody had approved the checks. It then told the person to send `/bench approve` ([`tools/agent_e2e.py`](tools/agent_e2e.py), [run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149)) |
+| Windows | The bench works in CI (compile, simulate, golden benches, receipt verify); not yet run inside Hermes on Windows |
 | Other boards (ESP32, Mega, Nano Every), I2C/SPI parts, displays | Not yet: the Uno and the parts above only |
 
 These are simulated parts, not physics. An LM35 here is a perfect 10 mV/°C, a relay switches instantly, and a cut wire is one of two modelled failures. What BenchForge proves is that the firmware's logic handles the cases on the bench. Real boards add things no simulator has.
@@ -237,10 +238,28 @@ The threat model and five audits are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Built During The Hermes Agent Plugin Hackathon
 
-- Built 8 to 11 November 2026 by Oh-Jay ([@Oh_Jay0](https://x.com/Oh_Jay0)), a mechatronics student. The code was written with AI (Claude, by Anthropic), directed and tested by Oh-Jay.
+- Built by Oh-Jay ([@Oh_Jay0](https://x.com/Oh_Jay0)), a mechatronics student. The code was written with AI (Claude, by Anthropic), directed and tested by Oh-Jay.
 - Simulator core: [avr8js](https://github.com/wokwi/avr8js) by Uri Shaked (MIT), vendored as readable JavaScript in [`engine/vendor/avr8js`](engine/vendor/avr8js) from commit `bee6f0a`. The parts, the bench runner and everything else here is new.
 - The animation's bitmap font is generated from DejaVu Sans Mono (Bitstream Vera licence) by [`tools/make_font.py`](tools/make_font.py).
-- Requires Hermes Agent `>=0.23.0`. No Python dependencies.
+
+### What It Uses
+
+| Thing | Version | Where |
+|---|---|---|
+| Hermes Agent | `>=0.23.0` | the plugin API (`ask_choice`, `post_message`, `ctx.llm`, `pre_tool_call`) |
+| arduino-cli | 1.4.1, SHA-256 pinned per platform | downloaded by `bench setup` from downloads.arduino.cc (GitHub as backup) |
+| Arduino AVR core | `arduino:avr@1.8.6` | installed by arduino-cli |
+| Servo library | `Servo@1.2.2` | installed by arduino-cli |
+| avr8js | commit `bee6f0a`, vendored | the ATmega328P simulator |
+| Node.js | 18 or newer (CI uses 22) | runs the simulator under its permission model |
+| Python | 3.11 or newer, standard library only | everything else |
+| Models used in testing | gemini-3.5-flash, gemini-3-flash-preview, gemini-3.5-flash-lite | through Hermes's own provider (`ctx.llm`), on Gemini's free tier |
+| GitHub Actions and Pages | | CI on Linux, macOS and Windows; the Telegram demo bot; the live board |
+
+### Build Log
+
+- **8 November 2026:** picked the idea and the scope: AI-written Arduino firmware, proven on a simulated chip before it touches a real board.
+- **9 November 2026:** first commit (05:23 UTC) with the simulator, the checks, the crash tests, receipts and the flash gate. Then the Hermes wiring (`/bench`, the agent tools, the gate hook, `hermes bench`), five security audits, CI on three systems plus a job that installs into a real Hermes, the board animation, the live board, real-model runs on Gemini, the Telegram demo bot and the agent end-to-end test.
 
 ## License
 
