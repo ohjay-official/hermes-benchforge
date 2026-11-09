@@ -174,6 +174,25 @@ class Workspace:
         except (OSError, ValueError):
             return None
 
+    def animate(self, out: Outcome) -> Path | None:
+        """The run as an animated GIF of the board (best-effort: None if it can't be drawn)."""
+        if out.report is None or out.build is None:
+            return None
+        try:
+            from .board import render_report
+
+            data = render_report(out.report)
+        except Exception:
+            return None
+        if not data:
+            return None
+        d = self.data_dir / "bundles"
+        d.mkdir(parents=True, exist_ok=True)
+        _prune(d, "*.gif", keep=50)
+        path = d / f"{out.bench.name}-{out.build.hex_sha256[:12]}.gif"
+        path.write_bytes(data)
+        return path
+
     def bundle(self, out: Outcome) -> Path | None:
         """One zip a person can download: sketch, firmware, receipt and how to flash it."""
         if out.build is None or out.receipt_path is None:

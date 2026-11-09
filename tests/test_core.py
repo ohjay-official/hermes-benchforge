@@ -240,6 +240,21 @@ class Receipts(unittest.TestCase):
         self.assertTrue(receipt.check_integrity(r))
 
 
+class Animation(unittest.TestCase):
+    def test_gif_is_well_formed(self):
+        from benchforge.gif import Canvas, write_gif
+        c = Canvas(40, 20, 0)
+        frames = []
+        for i in range(3):
+            c.rect(i * 5, 2, 6, 6, 1)
+            c.text(0, 6, f"{i}°C ✓", 2)
+            frames.append(bytearray(c.px))
+        data = write_gif(frames, [(0, 0, 0), (255, 0, 0), (255, 255, 255)], [10, 10, 10], 40, 20)
+        self.assertEqual(data[:6], b"GIF89a")
+        self.assertEqual(data[-1:], b"\x3b")
+        self.assertEqual(data.count(b"\x21\xf9\x04"), 3)        # one graphic control block per frame
+
+
 class FlashGate(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())

@@ -49,7 +49,7 @@ def cmd_check(a) -> int:
     return 0
 
 
-def _show(out, *, as_json: bool) -> int:
+def _show(out, *, as_json: bool, animate: bool = True) -> int:
     if as_json:
         print(json.dumps(out.receipt if out.receipt else {"compile_error": out.compile_error}, indent=2,
                          ensure_ascii=False))
@@ -58,6 +58,10 @@ def _show(out, *, as_json: bool) -> int:
         print("❌ Did not compile:\n" + out.compile_error)
         return 1
     print(R.summary(out.report, out.build))
+    if out.receipt_path and animate:
+        gif = _ws().animate(out)
+        if gif:
+            print(f"\nAnimation: {gif}")
     if out.receipt_path:
         print(f"\nReceipt: {out.receipt_path}")
         if out.passed:

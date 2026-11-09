@@ -163,6 +163,9 @@ def _forge_and_report(ctx, ws, bench, sketch: str, progress: _Progress, *, fixer
     if final.passed:
         lines.append("The flash gate now allows this exact firmware onto a real board:")
         lines.append(f"arduino-cli upload -p <port> --fqbn arduino:avr:uno --input-file {_shown_path(final.hex_path)}")
+    gif = ws.animate(final)
+    if gif:
+        lines.append(f"MEDIA:{gif}")
     bundle = ws.bundle(final)
     if bundle:
         lines.append(f"MEDIA:{bundle}")
