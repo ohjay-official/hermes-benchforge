@@ -40,7 +40,7 @@ Then, in any Hermes chat (CLI, Telegram, Discord, Slack):
 /bench greenhouse fan: LM35 on A0, relay on D7 on above 30 °C and off below 27 °C, LED on D13 blinks every second
 ```
 
-`/bench demo` starts from a typical first-draft sketch so you can watch the fix loop. A `/bench <description>` request starts from nothing.
+`/bench demo` starts from a typical first-draft sketch so you can watch the fix loop. A `/bench <description>` request starts from nothing. On Telegram, Hermes's own commands fill the command menu; `hermes config set platforms.telegram.extra.command_menu.priority bench` lists `/bench` first (typing it works either way).
 
 **Check a sketch of your own:**
 
