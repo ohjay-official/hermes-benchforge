@@ -107,6 +107,8 @@ Delete the folder to remove everything. Chat replies show the home folder as `~`
 
 **Left.** The Arduino package index is trusted (it is the toolchain's own upstream).
 
+**The live board.** A live link carries a firmware in the part of the URL after `#`, which the browser never sends anywhere. The page fetches only its own files: the engine and, for short links, the dictionary the link names by its zlib id (`dicts/<8 hex digits>.txt`, so a link can't point the page at any other path). Its decoder (`web/inflate.js`) checks every length and distance, stops at 4 MB of output, and checks zlib's Adler-32 trailer, so a damaged or hostile link is refused with a message instead of misread; CI tests it against Python's zlib. A link can still carry any firmware someone compiled, and it only ever runs inside the simulated chip on that page.
+
 ## Reporting
 
 Open a GitHub issue, or for anything sensitive message [@Oh_Jay0](https://x.com/Oh_Jay0) on X.
