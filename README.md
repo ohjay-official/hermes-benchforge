@@ -2,17 +2,21 @@
 
 **The flight simulator for AI-written Arduino firmware. Proven on the chip before it touches the world.**
 
+![A greenhouse fan controller running on BenchForge's simulated Arduino Uno: the temperature rises, the fan relay switches on, each check turns green](docs/board.gif)
+
 Ask Hermes for Arduino code and you get something that compiles and looks right. Then it meets a real board. The relay buzzes because the temperature reading jitters. The status LED goes haywire after 49 days because the timer wrapped. One press of the button counts as five. And when the sensor wire works loose, the greenhouse fan switches off and the plants cook. You find these bugs after the wiring is done, with mains power, a motor or a heater on the other end.
 
 BenchForge finds them first. Tell Hermes what the board should do. BenchForge writes the checks, and you approve them in plain English before any code exists. Hermes writes the sketch, and the real Arduino compiler builds it. The firmware then runs instruction by instruction on a simulated ATmega328P (the chip on an Arduino Uno), with simulated sensors, buttons, relays, servos and buzzers wired to its pins. After that come the crash tests. Every failure goes back to Hermes, one at a time, until everything is green. You get the sketch, the firmware and a proof receipt anyone can re-run. And the agent can't flash a real board with anything that hasn't passed.
 
-[How to test](#how-to-test) · [What you see](#what-you-see) · [How it works](#how-it-works) · [Why it's a plugin, not a prompt](#why-its-a-plugin-not-a-prompt) · [The checks](#the-checks) · [What works today](#what-works-today) · [What it touches](#what-it-touches)
+**[▶ Try it in your browser, nothing to install](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan-draft)** · [How to test](#how-to-test) · [What you see](#what-you-see) · [How it works](#how-it-works) · [Why it's a plugin, not a prompt](#why-its-a-plugin-not-a-prompt) · [The checks](#the-checks) · [What works today](#what-works-today) · [What it touches](#what-it-touches)
 
 ## How To Test
 
-No Arduino, no hardware, no wiring. You need Python 3.11+ and Node.js 18+.
+No Arduino, no hardware, no wiring.
 
-**In two commands, without Hermes:**
+**In 10 seconds, in your browser:** open the [live board](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan-draft). This is the greenhouse fan's first draft. It passes its normal checks, but its crash tests fail. Tap **Try it yourself**, drag the temperature slider past 30 °C, then tick **cut the wire**. The fan relay starts clicking 30 times a second. Now open the [fixed firmware](https://ohjay-official.github.io/hermes-benchforge/#demo=greenhouse-fan) and do the same: the fan fails safe and stays on. Both are the real compiled firmware running on the simulated chip in your browser.
+
+**In two commands, without Hermes** (Python 3.11+ and Node.js 18+):
 
 ```bash
 git clone https://github.com/ohjay-official/hermes-benchforge && cd hermes-benchforge
@@ -93,7 +97,16 @@ First sketch: ✗ 20/23 [Clock rollover…] the whole time, led blinks at 1 Hz: 
 Fix 1: ✅ 22/22 checks pass
 ```
 
-The 🔧 line is the model's own summary of its change. The reply ends with a zip holding the sketch, the firmware (`.hex`), the receipt and how to flash it.
+The 🔧 line is the model's own summary of its change. The reply then shows:
+
+- the run as an animated GIF of the board (above)
+- a zip with the sketch, the firmware (`.hex`), the receipt and `live.html`, which opens the live board offline with this firmware in it
+
+Where the chat allows long links, the reply also carries a link straight to the live board.
+
+[![The live board on a phone: the fixed firmware keeps the fan on when the sensor wire is cut; the first draft makes the relay click 30 times a second](docs/live-board.png)](https://ohjay-official.github.io/hermes-benchforge/)
+
+The live board runs the same engine in the browser, with the same simulated parts. **Play the bench** replays the exact test. **Try it yourself** gives you a slider for every sensor, a button you can hold, and a **cut the wire** switch for each sensor. The firmware travels in the link after `#`, which the browser never sends to the server. A bundle zip opened on the page is read locally and never uploaded.
 
 ## How It Works
 
@@ -199,6 +212,7 @@ On every push, CI compiles all eight sketches with the real arduino-cli on Linux
 | Receipts and `verify` | Works; CI re-runs a receipt and requires an exact match |
 | Flash gate | Works; unit and end-to-end tests |
 | `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests; `hermes plugins validate` and `doctor` pass in CI |
+| Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, and the page is tested in Chromium at phone size |
 | Live run on Telegram with a real model | Being filmed for the demo; this row is updated when it's done |
 | Windows | Not tested yet |
 | Other boards (ESP32, Mega, Nano Every), I2C/SPI parts, displays | Not yet: the Uno and the parts above only |
@@ -213,6 +227,7 @@ These are simulated parts, not physics. An LM35 here is a perfect 10 mV/°C, a r
 - **Model:** through Hermes's `ctx.llm` with your own provider, for `/bench` only. It sends your description, the bench, the sketch and failure details (Serial lines clipped, local paths removed).
 - **Stored about people:** an approval records the chat platform and a one-way hash of the user id. No names.
 - **No** credentials, telemetry or background processes.
+- **Live board:** a static page on GitHub Pages. Firmware reaches it only in the link's `#` fragment, or from a zip you open, and both stay in your browser.
 
 The threat model and five audits are in [docs/SECURITY.md](docs/SECURITY.md).
 
@@ -220,6 +235,7 @@ The threat model and five audits are in [docs/SECURITY.md](docs/SECURITY.md).
 
 - Built 8 to 11 November 2026 by Oh-Jay ([@Oh_Jay0](https://x.com/Oh_Jay0)), a mechatronics student. The code was written with AI (Claude, by Anthropic), directed and tested by Oh-Jay.
 - Simulator core: [avr8js](https://github.com/wokwi/avr8js) by Uri Shaked (MIT), vendored as readable JavaScript in [`engine/vendor/avr8js`](engine/vendor/avr8js) from commit `bee6f0a`. The parts, the bench runner and everything else here is new.
+- The animation's bitmap font is generated from DejaVu Sans Mono (Bitstream Vera licence) by [`tools/make_font.py`](tools/make_font.py).
 - Requires Hermes Agent `>=0.23.0`. No Python dependencies.
 
 ## License
