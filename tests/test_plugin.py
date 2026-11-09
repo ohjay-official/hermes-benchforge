@@ -219,6 +219,7 @@ class EndToEnd(unittest.TestCase):
         res = json.loads(ctx.tools["bench_test"]({"bench": bench, "sketch": fixed}))
         self.assertTrue(res["passed"])
         self.assertIn("/bench approve", res["approval_needed"])
+        self.assertIn("hermes-benchforge/#z=", res["watch_it_run"])
 
     def test_agent_tool_explains_a_bad_bench(self):
         ctx = FakeCtx()

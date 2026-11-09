@@ -21,7 +21,8 @@ BENCH_TEST = {
         "before any upload. Call bench_guide first for the bench format. If it fails, read 'fix', change only "
         "the sketch and call again with the same bench; never weaken the checks to make them pass. A person "
         "must approve the checks themselves (they send /bench approve <id>) before BenchForge lets the "
-        "firmware be flashed; tell them the plain-English checks and the approve command it returns."
+        "firmware be flashed; tell them the plain-English checks and the approve command it returns. A "
+        "passing result includes 'watch_it_run', a link that replays the firmware in a browser: share it."
     ),
     "parameters": {
         "type": "object",

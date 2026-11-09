@@ -401,6 +401,12 @@ def _test(args: dict, **_kw) -> str:
             result["fix"] = out.brief()
         else:
             result["firmware_hex"] = str(out.hex_path)
+            try:
+                from .benchforge import live
+
+                result["watch_it_run"] = live.link(live.payload(out.bench, out.build, out.report))
+            except Exception:
+                logger.debug("benchforge live link failed", exc_info=True)
             if not result["approved"]:
                 did = ws.save_draft(bench, bench.goal or bench.name, sketch=sketch)
                 result["approval_needed"] = (
