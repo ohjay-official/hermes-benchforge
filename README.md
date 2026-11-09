@@ -1,3 +1,5 @@
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.png"><img src="docs/brand/logo-light.png" width="640" alt="BenchForge: proven on the chip before it touches the world"></picture></p>
+
 # BenchForge for Hermes
 
 [![ci](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/ci.yml/badge.svg)](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/ci.yml) [![live board](https://github.com/ohjay-official/hermes-benchforge/actions/workflows/pages.yml/badge.svg)](https://ohjay-official.github.io/hermes-benchforge/)

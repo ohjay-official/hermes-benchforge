@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420"><rect width="1600" height="420" fill="#05090D"/>
+<g transform="translate(70 95) scale(0.5)"><path d="M140 48 H455 A90 90 0 0 1 545 138 V235 A30 30 0 0 1 515 265 H250 V191 H471 V122 H140 Z M140 338 H471 V265 H250 V191 H515 A30 30 0 0 1 545 221 V322 A90 90 0 0 1 455 412 H140 Z M605 48 H1030 L975 122 H605 Z M605 412 V287 A96 96 0 0 1 701 191 H915 L860 265 H698 A18 18 0 0 0 680 283 V412 Z" fill="#FFFFFF"/><path d="M45 195 H162 V261 H45 V195 Z" fill="#FEA320"/></g>
+<rect x="610" y="96" width="5" height="214" fill="#00C6C5"/>
+<text x="660" y="234" font-family="Inter Display" font-weight="700" font-size="150" letter-spacing="-5" fill="#FFFFFF">Bench<tspan fill="#00C6C5">Forge</tspan></text>
+<text x="664" y="300" font-family="Inter Display" font-weight="500" font-size="25" letter-spacing="4.6" fill="#C9D1D9">PROVEN ON THE CHIP BEFORE IT TOUCHES THE WORLD.</text></svg>
