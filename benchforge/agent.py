@@ -18,8 +18,12 @@ class DraftError(RuntimeError):
 
 
 def _ask(llm, instructions: str, text: str, schema: dict, purpose: str, max_tokens: int = 16000):
-    result = llm.complete_structured(instructions=instructions, input=[{"type": "text", "text": text}],
-                                     json_schema=schema, purpose=purpose, max_tokens=max_tokens, timeout=240)
+    """One JSON answer. JSON mode rather than a strict schema: some providers (Gemini) refuse loose object
+    schemas, and every answer is validated here anyway. The schema's keys are named in the instructions."""
+    keys = ", ".join(f'"{k}"' for k in schema.get("properties", {}))
+    result = llm.complete_structured(instructions=instructions + f"\n\nAnswer with one JSON object with the keys {keys}.",
+                                     input=[{"type": "text", "text": text}], json_mode=True,
+                                     purpose=purpose, max_tokens=max_tokens, timeout=240)
     parsed = getattr(result, "parsed", None)
     if not isinstance(parsed, dict):
         raw = getattr(result, "text", "") or ""

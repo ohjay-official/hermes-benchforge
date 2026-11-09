@@ -48,7 +48,8 @@ class Gemini:
         self.key, self.model = key, model
         self.calls = 0
 
-    def complete_structured(self, *, instructions, input, json_schema=None, purpose="", max_tokens=None, timeout=None):
+    def complete_structured(self, *, instructions, input, json_schema=None, json_mode=False, purpose="",
+                            max_tokens=None, timeout=None):
         self.calls += 1
         body = {
             "systemInstruction": {"parts": [{"text": instructions}]},
