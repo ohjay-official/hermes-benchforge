@@ -205,7 +205,7 @@ The full format, with every part, is what the `bench_guide` tool returns ([`benc
 | [servo-knob](examples/servo-knob) | potentiometer, servo | a broken knob wire makes the servo thrash |
 | [incubator-heater](examples/incubator-heater) | NTC thermistor, active-low relay | single readings let noise switch the heater inside its band; a broken thermistor wire reads as freezing and leaves the heater on |
 
-On every push, CI compiles all ten sketches with the real arduino-cli on Linux and macOS. Each draft must fail exactly the checks recorded in its `expect.json`, and each fix must pass them all ([`tools/golden.py`](tools/golden.py)).
+On every push, CI compiles all ten sketches with the real arduino-cli on Linux, macOS and Windows. Each draft must fail exactly the checks recorded in its `expect.json`, and each fix must pass them all ([`tools/golden.py`](tools/golden.py)).
 
 ## What Works Today
 
@@ -217,7 +217,7 @@ On every push, CI compiles all ten sketches with the real arduino-cli on Linux a
 | Receipts and `verify` | Works; CI re-runs a receipt and requires an exact match |
 | Flash gate | Works; unit and end-to-end tests, and in a real Hermes gateway (below) the agent's own `arduino-cli upload` was blocked |
 | `/bench`, `bench_test`, `bench_guide`, `hermes bench` | Work against a stand-in Hermes in tests and inside a real Hermes (Telegram and the API server); `hermes plugins validate` (security scan: safe) and `doctor` pass in CI |
-| Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, and the page is tested in Chromium at phone size |
+| Board animation (GIF) and live board (browser) | Works; the GIF writer is checked pixel-exact against Pillow, the link decoder is tested against Python's zlib in CI, and the page was checked in headless Chromium at phone size while building it |
 | The whole loop with a real model | Works: on gemini-3.5-flash, three plain-English requests (greenhouse fan, button lamp, parking sensor) all reached green, and `/bench demo` went from 20/23 to 22/22 in two fixes and 19 seconds ([`tools/llm_smoke.py`](tools/llm_smoke.py), run on demand in CI) |
 | Live run on Telegram with a real model | Works: `/bench demo` in a real Hermes gateway on Telegram, on gemini-3-flash-preview, went from 20/23 to 22/22 and delivered the animation and the bundle ([`demo-bot.yml`](.github/workflows/demo-bot.yml)) |
 | The agent on its own, in a real Hermes gateway | Works: asked for a button-toggle lamp and told to test it with BenchForge, the agent (gemini-3.5-flash-lite) found `bench_guide` and `bench_test` through Hermes's tool search, wrote its own bench, tested the sketch until it passed and gave the receipt id. Asked to flash it, it ran `arduino-cli upload` itself and the flash gate stopped it: nobody had approved the checks. It then told the person to send `/bench approve` ([`tools/agent_e2e.py`](tools/agent_e2e.py), [run](https://github.com/ohjay-official/hermes-benchforge/actions/runs/42603037149)) |
