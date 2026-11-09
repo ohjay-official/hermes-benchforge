@@ -342,7 +342,7 @@ def _run(ctx, raw_args: str, source) -> str:
 
     text = (raw_args or "").strip()
     word, _, rest = text.partition(" ")
-    word = word.lower()
+    word = word.lower().strip(".,!?;:'\"")          # "/bench demo." is still the demo
     try:
         if word in ("", "help", "-h", "--help"):
             return HELP

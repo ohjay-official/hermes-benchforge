@@ -134,6 +134,12 @@ class Registration(unittest.TestCase):
         self.assertIn("BENCH FORMAT", guide["format"])
         self.assertEqual(guide["example"]["name"], "greenhouse-fan")
 
+    def test_a_trailing_full_stop_still_means_the_command(self):
+        ctx = FakeCtx()
+        plugin.register(ctx)
+        self.assertIn("/bench demo", ctx.commands["bench"]("help."))
+        self.assertIn("BenchForge", ctx.commands["bench"]("status!"))
+
     def test_gate_ignores_everything_but_flashing(self):
         ctx = FakeCtx()
         plugin.register(ctx)
