@@ -233,19 +233,32 @@ function createBoard(spec, opts = {}) {
     }
   }
 
+  // The pin voltage an analog part presents. Noise is drawn fresh for every ADC conversion (as real ADC
+  // noise is), so firmware that averages several readings really does see a steadier value.
+  const partVolts = (part, fresh) => {
+    if (part.faults.short === 'gnd') return 0;
+    if (part.faults.short === 'vcc') return 5;
+    if (part.faults.disconnect) return fresh ? (part.floating ? part.floating.v : disconnectedVolts(part, rand)) : disconnectedVolts(part, rand);
+    let value = signals[`${part.id}.${part.def.signals[0]}`];
+    const noise = part.faults.noise;
+    if (noise && fresh) value += (rand() * 2 - 1) * noise;
+    return analogVolts(part, value);
+  };
+  const analogByChannel = {};
   const applyAnalog = () => {
     for (const part of Object.values(parts)) {
       if (!part.def.analog) continue;
       const ch = UNO_PINS[part.pins.pin][2];
-      const sig = `${part.id}.${part.def.signals[0]}`;
-      let value = signals[sig];
-      const noise = part.faults.noise;
-      if (noise) value += (rand() * 2 - 1) * noise;
-      let volts = part.faults.disconnect ? disconnectedVolts(part, rand) : analogVolts(part, value);
-      if (part.faults.short === 'gnd') volts = 0;
-      if (part.faults.short === 'vcc') volts = 5;
-      adc.channelValues[ch] = volts;
+      analogByChannel[ch] = part;
+      adc.channelValues[ch] = partVolts(part, false);   // advances a floating pin's wander once per ms
     }
+  };
+  const baseRead = adc.onADCRead;
+  adc.onADCRead = (input) => {
+    if (input.type === avr.ADCMuxInputType.SingleEnded && analogByChannel[input.channel]) {
+      adc.channelValues[input.channel] = partVolts(analogByChannel[input.channel], true);
+    }
+    baseRead(input);
   };
 
   // ---- stimuli and faults, applied once per simulated millisecond

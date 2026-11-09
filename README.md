@@ -143,7 +143,7 @@ The live board runs the same engine in the browser, with the same simulated part
 
 | Test | What happens | The bug it catches |
 |---|---|---|
-| Noisy sensor | every analog reading jitters (±0.6 °C, ±1.5 %) | no hysteresis or smoothing: relays chatter, servos twitch |
+| Noisy sensor | every ADC conversion jitters (±0.6 °C, ±1.5 %), so averaging really helps | no hysteresis or smoothing: relays chatter, servos twitch |
 | Clock rollover | `millis()` and `micros()` start just short of their wrap and wrap mid-test | `millis() >= deadline` timing, which breaks after 49.7 days of uptime |
 | Bouncy button | every press and release chatters for 5 ms | no debounce: one press counts several times |
 | Unplugged sensor | the sensor wire is cut mid-run: the pin floats, or a divider pulls it to a rail | firmware that trusts garbage and drives outputs unsafely |
@@ -199,15 +199,16 @@ The full format, with every part, is what the `bench_guide` tool returns ([`benc
 | [button-toggle](examples/button-toggle) | push button, LED | contact bounce toggles the lamp several times per press |
 | [parking-sensor](examples/parking-sensor) | HC-SR04, buzzer | a dead sensor goes silent instead of warning |
 | [servo-knob](examples/servo-knob) | potentiometer, servo | a broken knob wire makes the servo thrash |
+| [incubator-heater](examples/incubator-heater) | NTC thermistor, active-low relay | single readings let noise switch the heater inside its band; a broken thermistor wire reads as freezing and leaves the heater on |
 
-On every push, CI compiles all eight sketches with the real arduino-cli on Linux and macOS. Each draft must fail exactly the checks recorded in its `expect.json`, and each fix must pass them all ([`tools/golden.py`](tools/golden.py)).
+On every push, CI compiles all ten sketches with the real arduino-cli on Linux and macOS. Each draft must fail exactly the checks recorded in its `expect.json`, and each fix must pass them all ([`tools/golden.py`](tools/golden.py)).
 
 ## What Works Today
 
 | Area | Status |
 |---|---|
 | Compile with the real arduino-cli and AVR core, sealed | Works; CI on Linux and macOS (Apple Silicon needs Rosetta, Arduino's avr-gcc is Intel-only) |
-| ATmega328P simulation with LEDs, relays, buzzer, servo, button, potentiometer, LM35, NTC, HC-SR04 | Works; 4 golden benches plus misbehaving-firmware tests |
+| ATmega328P simulation with LEDs, relays, buzzer, servo, button, potentiometer, LM35, NTC, HC-SR04 | Works; 5 golden benches plus misbehaving-firmware tests |
 | Crash tests: noise, rollover, bounce, unplugged, relay chatter | Works; every one is caught by a golden draft |
 | Receipts and `verify` | Works; CI re-runs a receipt and requires an exact match |
 | Flash gate | Works; unit and end-to-end tests |

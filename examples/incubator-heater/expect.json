@@ -1,0 +1,13 @@
+{
+  "draft.ino": {
+    "verdict": "fail",
+    "fails": [
+      "noise/band_keeps_heating",
+      "unplugged_therm/unplugged_therm_heater"
+    ]
+  },
+  "fixed.ino": {
+    "verdict": "pass",
+    "fails": []
+  }
+}

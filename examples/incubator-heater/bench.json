@@ -1,0 +1,18 @@
+{
+  "bench": 1,
+  "name": "incubator-heater",
+  "board": "uno",
+  "goal": "Egg incubator: a 10k NTC thermistor on A1 (10k resistor to 5 V) reads the air. The heater relay module on D8 switches on when its pin is LOW. Heat below 37.0 °C, stop above 38.0 °C. If the thermistor wire breaks, the heater must turn off: a heater that thinks it is freezing can start a fire.",
+  "parts": [
+    {"id": "therm", "type": "ntc", "pin": "A1", "start": 25},
+    {"id": "heater", "type": "relay", "pin": "D8", "active_low": true}
+  ],
+  "steps": [
+    {"id": "cold_heats", "expect": {"part": "heater", "becomes": "on", "within_ms": 1000}},
+    {"id": "band_keeps_heating", "set": {"therm": 37.5}, "expect": {"part": "heater", "stays": "on", "for_ms": 2000}},
+    {"id": "warm_stops", "set": {"therm": 38.5}, "expect": {"part": "heater", "becomes": "off", "within_ms": 1000}},
+    {"id": "band_stays_off", "set": {"therm": 37.5}, "expect": {"part": "heater", "stays": "off", "for_ms": 2000}},
+    {"id": "cooling_reheats", "set": {"therm": 36.6}, "expect": {"part": "heater", "becomes": "on", "within_ms": 1000}}
+  ],
+  "unplugged": {"therm": {"heater": "off"}}
+}
