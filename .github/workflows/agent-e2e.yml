@@ -1,0 +1,64 @@
+name: agent end to end
+
+# A real Hermes gateway with a real model (Gemini): the agent writes and tests Arduino firmware with
+# BenchForge's tools on its own, then tries to flash it and is stopped by the flash gate (the checks were
+# never approved by a person). Run it by hand from the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Gemini model"
+        default: "gemini-3.5-flash"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
+      - name: Install Hermes Agent
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Configure the model and the local API server
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          umask 077
+          mkdir -p "$HOME/.hermes"
+          key=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+          echo "::add-mask::$key"
+          echo "API_SERVER_KEY=$key" >> "$GITHUB_ENV"
+          {
+            printf 'GOOGLE_API_KEY=%s\n' "$GEMINI_API_KEY"
+            printf 'API_SERVER_ENABLED=true\n'
+            printf 'API_SERVER_KEY=%s\n' "$key"
+          } >> "$HOME/.hermes/.env"
+          hermes config set model.provider gemini
+          hermes config set model.default "$MODEL"
+          hermes config set model.base_url https://generativelanguage.googleapis.com/v1beta
+          hermes config set agent.reasoning_effort low
+      - name: Install BenchForge from this commit
+        run: |
+          mkdir -p "$HOME/.hermes/plugins/benchforge"
+          git archive HEAD | tar -x -C "$HOME/.hermes/plugins/benchforge"
+          hermes plugins enable benchforge
+          hermes bench setup
+      - name: Start the gateway
+        run: |
+          nohup hermes gateway run > gateway.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8642/health >/dev/null 2>&1 && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8642/health
+      - name: The agent builds, tests, and is stopped at the flash gate
+        run: python3 -u tools/agent_e2e.py
+      - name: Gateway log (BenchForge lines)
+        if: always()
+        run: grep -i "benchforge\|bench_test\|bench_guide\|flash gate\|Traceback" gateway.log | tail -60 || true
