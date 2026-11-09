@@ -124,7 +124,7 @@ class Workspace:
         for n in range(1, max_rounds + 1):
             if out.passed:
                 break
-            brief = out.brief()
+            brief = out.brief() + _history(rounds)
             try:
                 new, change = fixer(out.sketch, brief)
             except Exception as exc:                      # a model outage ends the loop, not the report
@@ -237,6 +237,25 @@ class Workspace:
         if out.compile_error:
             return ["the sketch no longer compiles: " + out.compile_error[:300]]
         return receipt.compare(rec, out.receipt)
+
+
+def _history(rounds: list) -> str:
+    """Earlier fixes that did not work, so the model stops going round in circles."""
+    tried = []
+    for r in rounds[1:]:
+        if not r.change:
+            continue
+        o = r.outcome
+        if o.compile_error:
+            still = "did not compile"
+        else:
+            ff = o.report.first_failure if o.report else None
+            still = f"then failed: {ff[1].text} (saw: {ff[1].saw})" if ff and ff[1] else "still failed"
+        tried.append(f"- fix {r.n}: {r.change} → {still}")
+    if not tried:
+        return ""
+    return ("\n\nEarlier fixes that did not get it green (try a different approach, not a variation):\n"
+            + "\n".join(tried[-4:]))
 
 
 def _prune(folder: Path, pattern: str, *, keep: int, max_age_days: int | None = None,

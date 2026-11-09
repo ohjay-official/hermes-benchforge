@@ -66,7 +66,8 @@ reads an LM35 in 0.5 °C steps). Keep edge values at least 1 °C (2 % for a knob
 from every threshold, and keep "inside the band" values at least that far from both ends.
 For every sensor, add an "unplugged" entry with the fail-safe state: what keeps people, plants, motors
 and property safe if that wire breaks. Use the pins they name; otherwise sensors on A0 upward, outputs on
-D7 upward, a status LED on D13. Use realistic deadlines (100 to 1000 ms). Do not invent features they
+D7 upward, a status LED on D13. Give parts short ids a person reads easily (fan, temp, lamp, buzzer, heartbeat), not abbreviations
+like bz or hb: the checks are shown to them in plain English. Use realistic deadlines (100 to 1000 ms). Do not invent features they
 did not ask for, apart from fail-safe states.
 
 """ + BENCH_FORMAT + """

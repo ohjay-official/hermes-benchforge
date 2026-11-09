@@ -225,7 +225,12 @@ def fix_brief(report: Report, sketch: str) -> str:
         lines.append("Each press chatters for a few ms. Debounce: accept a new button state only after "
                      "it has held steady for 20 to 50 ms.")
     if run.name.startswith("unplugged_"):
-        lines.append("The sensor wire is cut mid-run, so its pin reads nonsense (floating, or stuck at a rail). "
-                     "Detect impossible or wildly jumping readings and drive the outputs to the safe state.")
+        lines.append("The sensor wire is cut mid-run. An analog pin with nothing on it floats: its reading wanders "
+                     "across the whole range and jumps; a divider's pin sticks at 0 or 1023 instead. Real air "
+                     "can't change more than about 1 °C in 100 ms. Read the sensor every 50 to 100 ms; if a reading "
+                     "is impossible (beyond the sensor's range, or stuck at 0 or 1023) or jumps more than a real "
+                     "signal could since the last one, treat the sensor as failed: drive the outputs to the safe "
+                     "state and keep them there (latch the fault) instead of reacting to each new reading. "
+                     "Do not try to fix it with pinMode or pull-ups on the analog pin.")
     lines.append("Change only the sketch. The checks are approved by the person and cannot change.")
     return "\n".join(lines)

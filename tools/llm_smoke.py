@@ -147,8 +147,24 @@ def main() -> int:
               f"{time.time() - t:.0f} s, {llm.calls} model calls so far")
         if not final.passed:
             print("   last failure:\n" + "\n".join("     " + x for x in final.brief().splitlines()))
-    print(f"\n{green}/{len(REQUESTS)} requests reached green")
-    return 0 if green == len(REQUESTS) else 1
+    # The exact path /bench demo takes: the approved greenhouse bench and its first-draft sketch.
+    from benchforge.spec import load
+
+    ex = ROOT / "examples" / "greenhouse-fan"
+    bench = load((ex / "bench.json").read_text(encoding="utf-8"))
+    print("\n━━ /bench demo (greenhouse first draft, real fixes)")
+    t = time.time()
+    rounds = ws.forge(bench, (ex / "draft.ino").read_text(encoding="utf-8"), agent.fixer(llm, bench),
+                      progress=lambda r: print(f"   round {r.n}: " + (
+                          "compile error" if r.outcome.compile_error else
+                          f"{r.outcome.report.counts()[0]}/{r.outcome.report.counts()[1]}") +
+                          (f" · {r.change}" if r.change else ""), flush=True))
+    demo_ok = rounds[-1].outcome.passed
+    print(f"   → {'GREEN' if demo_ok else 'NOT GREEN'} after {len(rounds) - 1} fixes, {time.time() - t:.0f} s")
+    if not demo_ok:
+        print("   last failure:\n" + "\n".join("     " + x for x in rounds[-1].outcome.brief().splitlines()))
+    print(f"\n{green}/{len(REQUESTS)} requests reached green; demo {'green' if demo_ok else 'NOT green'}")
+    return 0 if green == len(REQUESTS) and demo_ok else 1
 
 
 if __name__ == "__main__":
