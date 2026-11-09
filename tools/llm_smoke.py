@@ -117,11 +117,13 @@ def demo_only(ws, llm, times: int) -> int:
     for i in range(times):
         print(f"\n━━ /bench demo, try {i + 1}")
         t = time.time()
-        rounds = ws.forge(bench, (ex / "draft.ino").read_text(encoding="utf-8"), agent.fixer(llm, bench),
-                          progress=lambda r: print(f"   round {r.n}: " + (
-                              "compile error" if r.outcome.compile_error else
-                              f"{r.outcome.report.counts()[0]}/{r.outcome.report.counts()[1]}") +
-                              (f" · {r.change}" if r.change else ""), flush=True))
+        def show(r):
+            o = r.outcome
+            score = "compile error" if o.compile_error else f"{o.report.counts()[0]}/{o.report.counts()[1]}"
+            ff = None if o.compile_error else o.report.first_failure
+            why = f"  ✗ {ff[0].title}: {ff[1].text} | saw: {ff[1].saw}" if ff and ff[1] is not None else ""
+            print(f"   round {r.n}: {score}{why}" + (f"\n      🔧 {r.change}" if r.change else ""), flush=True)
+        rounds = ws.forge(bench, (ex / "draft.ino").read_text(encoding="utf-8"), agent.fixer(llm, bench), progress=show)
         ok = rounds[-1].outcome.passed
         results.append((ok, len(rounds) - 1, time.time() - t))
         print(f"   → {'GREEN' if ok else 'NOT GREEN'} after {len(rounds) - 1} fixes, {time.time() - t:.0f} s")

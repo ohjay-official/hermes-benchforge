@@ -187,7 +187,7 @@ The live board runs the same engine in the browser, with the same simulated part
 | Test | What happens | The bug it catches |
 |---|---|---|
 | Noisy sensor | every ADC conversion jitters (±0.6 °C, ±1.5 %), so averaging really helps | no hysteresis or smoothing: relays chatter, servos twitch |
-| Clock rollover | `millis()` and `micros()` start just short of their wrap and wrap mid-test | `millis() >= deadline` timing, which breaks after 49.7 days of uptime |
+| Clock rollover | `millis()` and `micros()` start just short of their wrap, as on day 49.7, and wrap mid-test | `millis() >= deadline` timing, which breaks after 49.7 days of uptime. Timers must start from `millis()` in `setup()`, since the clock doesn't start at 0 here |
 | Bouncy button | every press and release chatters for 5 ms | no debounce: one press counts several times |
 | Unplugged sensor | the sensor wire is cut mid-run: the pin floats, or a divider pulls it to a rail | firmware that trusts garbage and drives outputs unsafely |
 | Relay chatter (always on) | any relay that clicks more than 4 times in one second | fails in every run, crash test or not |

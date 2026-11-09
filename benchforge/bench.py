@@ -219,8 +219,10 @@ def fix_brief(report: Report, sketch: str) -> str:
         lines.append("The readings jitter in this run. Average several readings and use separate on/off "
                      "thresholds (hysteresis) so outputs do not flicker.")
     if run.name == "rollover":
-        lines.append("millis() wraps to 0 during this run. Compare elapsed time with subtraction "
-                     "(millis() - start >= interval), never millis() >= deadline.")
+        lines.append("In this run millis() starts just short of its 32-bit limit, as on day 49.7, and wraps to 0 "
+                     "mid-run. Start every timer from the clock in setup() (lastBlink = millis();), never from 0, "
+                     "and compare elapsed time with subtraction: if (millis() - lastBlink >= interval) "
+                     "{ lastBlink = millis(); ... }. Never millis() >= deadline or millis() + interval.")
     if run.name == "bounce":
         lines.append("Each press chatters for a few ms. Debounce: accept a new button state only after "
                      "it has held steady for 20 to 50 ms.")
